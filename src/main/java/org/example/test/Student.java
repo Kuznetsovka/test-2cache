@@ -9,6 +9,7 @@ import java.util.Set;
  * @author Kuznetsovka created 14.07.2022
  */
 @Entity(name = "students")
+@NamedQuery(name = "Student.getBySurname", query = "select e from students e where e.surname=:surname")
 public class Student {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)

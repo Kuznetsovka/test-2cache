@@ -3,7 +3,7 @@
     <persistence-unit name="default" transaction-type="RESOURCE_LOCAL">
         <description>Hibernate JPA Configuration Example</description>
         <exclude-unlisted-classes>false</exclude-unlisted-classes>
-        <shared-cache-mode>ALL</shared-cache-mode>
+        <shared-cache-mode>ENABLE_SELECTIVE</shared-cache-mode>
         <properties>
             <property name="javax.persistence.jdbc.driver" value="org.postgresql.Driver"/>
             <property name="javax.persistence.jdbc.url" value="jdbc:postgresql://localhost:5432/jpa-test"/>
@@ -17,7 +17,13 @@
             <property name="hibernate.connection.provider_class" value="org.hibernate.connection.HikariCPConnectionProvider"/>
             <property name="hibernate.cache.use_second_level_cache" value="true"/>
             <property name="hibernate.cache.region.factory_class" value="org.hibernate.cache.ehcache.EhCacheRegionFactory"/>
+            <property name="hibernate.cache.cacheManagerName" value="basicCache"/>
             <property name="hibernate.cache.provider_class" value="org.hibernate.cache.EhCacheProvider"/>
+
+            <property name="hibernate.cache.use_query_cache" value="true" />
+
+            <property name="hibernate.generate_statistics" value="true"/>
+            <property name="hibernate.cache.use_structured_entries" value="true"/>
         </properties>
     </persistence-unit>
 </persistence>
