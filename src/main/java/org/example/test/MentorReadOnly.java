@@ -10,12 +10,10 @@ import java.util.Set;
  * @author Kuznetsovka created 14.07.2022
  */
 
-@Entity(name = "mentors")
+@Entity(name = "mentors_write_and_write")
 @Cacheable
-@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
-@NamedQuery(name = "Mentor.getBySurname", query = "select e from mentors e where e.surname=:surname",
-    hints = { @QueryHint(name = "org.hibernate.cacheable", value = "true") })
-public class Mentor {
+@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_ONLY)
+public class MentorReadOnly {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,22 +24,14 @@ public class Mentor {
   public String surname;
 
   public LocalDateTime birthday;
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(
-          name = "student_mentor",
-          joinColumns = @JoinColumn(name = "mentor_id"),
-          inverseJoinColumns = @JoinColumn(name = "student_id"))
-  public Set<Student> students;
 
-  public Mentor() {
+  public MentorReadOnly() {
   }
 
-  public Mentor(Long id, String name, String surname, LocalDateTime birthday, Set<Student> students) {
-    this.id = id;
+  public MentorReadOnly(String name, String surname, LocalDateTime birthday) {
     this.name = name;
     this.surname = surname;
     this.birthday = birthday;
-    this.students = students;
   }
 
   public Long getId() {
@@ -74,14 +64,6 @@ public class Mentor {
 
   public void setBirthday(LocalDateTime birthday) {
     this.birthday = birthday;
-  }
-
-  public Set<Student> getStudents() {
-    return students;
-  }
-
-  public void setStudents(Set<Student> students) {
-    this.students = students;
   }
 
 }
