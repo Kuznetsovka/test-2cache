@@ -1,19 +1,27 @@
 package org.example.test;
 
-import org.hibernate.Cache;
 import org.hibernate.Session;
 import org.hibernate.stat.Statistics;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import javax.cache.CacheManager;
+import javax.cache.Caching;
+import javax.cache.configuration.MutableConfiguration;
+import javax.cache.expiry.CreatedExpiryPolicy;
+import javax.cache.expiry.Duration;
+import javax.cache.spi.CachingProvider;
+import javax.persistence.Cache;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 
 /**
@@ -21,11 +29,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 public class Main {
 
-  private static final Session session = initSessionFactory();
+  // https://russianblogs.com/article/74471007299/
+  public static final Session session = initSessionFactory();
 
   private static final Statistics statictics = session.getSessionFactory().getStatistics();
 
   private static final Cache cache = session.getSessionFactory().getCache();
+
+  private static EntityManagerFactory emf = null;
+
+
 
   @BeforeAll
   public static void createCache(){
@@ -36,6 +49,17 @@ public class Main {
     //import net.sf.ehcache.config.CacheConfiguration;
     //import net.sf.ehcache.config.PersistenceConfiguration;
     //import net.sf.ehcache.store.MemoryStoreEvictionPolicy;
+//    CachingProvider provider = Caching.getCachingProvider();
+//    CacheManager cacheManager = provider.getCacheManager();
+//    MutableConfiguration<Long, String> configuration =
+//        new MutableConfiguration<Long, String>()
+//            .set
+//            .setTypes(Long.class, String.class)
+//            .setStoreByValue(false)
+//            .setExpiryPolicyFactory(CreatedExpiryPolicy.factoryOf(Duration.ONE_MINUTE));
+//    Cache<Long, String> cache = cacheManager.createCache("jCache", configuration);
+//
+//
 //    CacheManager manager1 = CacheManager.newInstance("ehcache.xml");
 //    CacheManager manager = CacheManager.create();
 //    Cache testCache = new Cache(
@@ -318,11 +342,7 @@ public class Main {
     System.out.println("Количество 'объектов' во 2-м кэше:" + statictics.getSecondLevelCachePutCount());
     session.evict(mentor1); // Удаление объекта из кеша сессии
     clearCache();           // Без очистки кэша объект не удалится
-//    long startTime = System.currentTimeMillis();
-//    long nowTime = 0;
-//    while((nowTime - startTime)< 5000 ){
-//     nowTime = System.currentTimeMillis();
-//    }
+
     System.out.println("Количество 'объектов' во 2-м кэше:" + statictics.getSecondLevelCachePutCount());
 
     Mentor mentor2 = session.find(Mentor.class, 1L);
@@ -336,13 +356,51 @@ public class Main {
     clearCache();
   }
 
+  /**
+   * Проверка очистки кэша по таймауту
+   * Результат: Настроить общий кэш в ehcache.xml с таймаутом безрезультатно
+   * Вывод: Есть возможность настроить динамический кэш
+   */
+  @Test
+  public void testCacheSecondLevelFindMethodQueryHandleTimeout() {
+    CachingProvider provider = Caching.getCachingProvider();
+    CacheManager cacheManager = provider.getCacheManager();
+    MutableConfiguration<Long, String> configuration =
+        new MutableConfiguration<Long, String>()
+            .setTypes(Long.class, String.class)
+            .setStatisticsEnabled(true)
+            .setStoreByValue(false)
+            .setExpiryPolicyFactory(CreatedExpiryPolicy.factoryOf(new Duration(TimeUnit.SECONDS, 4)));
+    javax.cache.Cache<Long, String> cache2 = cacheManager.createCache("jCache", configuration);
+    cache2.put(1L, "one");
+    assertEquals("one",cache2.get(1L));
+    sleep(5000);
+
+    assertNull(cache2.get(1L));
+    cache2.put(2L, "two");
+    assertEquals("two",cache2.get(2L));
+
+    sleep(2000);
+
+    assertEquals("two",cache2.get(2L));
+
+  }
+
+  private void sleep(int milliseconds) {
+    try {
+      Thread.sleep(milliseconds);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private static void naming(Student user, String name, String surname) {
     user.setName(name);
     user.setSurname(surname);
   }
 
   private static Session initSessionFactory() {
-    EntityManagerFactory emf = Persistence.createEntityManagerFactory("default");
+    emf = Persistence.createEntityManagerFactory("default");
     return emf.createEntityManager().unwrap(org.hibernate.Session.class);
   }
 

@@ -3,6 +3,15 @@
     <persistence-unit name="default" transaction-type="RESOURCE_LOCAL">
         <description>Hibernate JPA Configuration Example</description>
         <exclude-unlisted-classes>false</exclude-unlisted-classes>
+<!--    ENABLE_SELECTIVE: Значение по умолчанию также является рекомендуемым.
+            Если явно не отмечен как кэшируемый (с использованием@Cacheable Примечание),
+            иначе объект не будет кэширован.
+        DISABLE_SELECTIVE: Если явно не отмечено как не кэшируемое@Cachable
+            Значение примечания установлено на false, иначе объект будет кэширован.
+        ALL: Даже если объект отмечен как не кэшируемый, объект всегда кэшируется.
+        NONE: Даже если он отмечен как кэшируемый, никакие объекты не будут кэшироваться.
+            Эта опция может полностью отключить кеш второго уровня.-->
+
         <shared-cache-mode>ENABLE_SELECTIVE</shared-cache-mode>
         <properties>
             <property name="javax.persistence.jdbc.driver" value="org.postgresql.Driver"/>
@@ -16,9 +25,14 @@
 <!--            <property name="hibernate.format_sql" value = "true"/>-->
             <property name="hibernate.connection.provider_class" value="org.hibernate.connection.HikariCPConnectionProvider"/>
             <property name="hibernate.cache.use_second_level_cache" value="true"/>
-            <property name="hibernate.cache.region.factory_class" value="org.hibernate.cache.ehcache.EhCacheRegionFactory"/>
-            <property name="hibernate.cache.cacheManagerName" value="basicCache"/>
-            <property name="hibernate.cache.provider_class" value="org.hibernate.cache.EhCacheProvider"/>
+
+            <property name="hibernate.cache.region.factory_class" value="org.hibernate.cache.jcache.JCacheRegionFactory"/>
+            <property name="hibernate.javax.cache.uri" value="ehcache.xml"/>
+            <property name="hibernate.cache.provider_class" value="org.ehcache.jsr107.EhcacheCachingProvider"/>
+
+<!--            <property name="hibernate.cache.region.factory_class" value="org.hibernate.cache.ehcache.EhCacheRegionFactory"/>-->
+<!--            <property name="hibernate.cache.cacheManagerName" value="basicCache"/>-->
+<!--            <property name="hibernate.cache.provider_class" value="org.hibernate.cache.EhCacheProvider"/>-->
 
             <property name="hibernate.cache.use_query_cache" value="true" />
 
@@ -27,3 +41,10 @@
         </properties>
     </persistence-unit>
 </persistence>
+
+<!--
+EHCache Большое комьюнити, поддержка, встроен в Hibernate. Ehcache 2.x с октября 2022 не будет поддерживаться.
+OSCache Мертв с 2013 года. Сырой для Hibernate
+SwarmCache с 2003 года, поддерживает Кластеризацию
+JBoss TreeCache - реплицированный транзакционный кэш с древовидной структурой 2006  год.
+-->

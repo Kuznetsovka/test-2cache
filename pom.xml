@@ -20,19 +20,34 @@
             <artifactId>hibernate-core</artifactId>
             <version>${hibernate.version}</version>
         </dependency>
-        <!--        Ehcache 2 уже есть внутри Hibernate -->
-        <!--            <version>2.10.6</version>-->
+
+        <!-- Hibernate Jcache (Для EhCache 3.0 ) -->
         <dependency>
             <groupId>org.hibernate</groupId>
-            <artifactId>hibernate-ehcache</artifactId>
+            <artifactId>hibernate-jcache</artifactId>
             <version>${hibernate.version}</version>
         </dependency>
-        <!--        Ehcache 2-->
+
+<!--        &lt;!&ndash;        Ehcache 2 уже есть внутри Hibernate &ndash;&gt;-->
+<!--        &lt;!&ndash;            <version>2.10.6</version>&ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>org.hibernate</groupId>-->
+<!--            <artifactId>hibernate-ehcache</artifactId>-->
+<!--            <version>${hibernate.version}</version>-->
+<!--        </dependency>-->
+<!--        &lt;!&ndash;        Ehcache 2&ndash;&gt;-->
 <!--        <dependency>-->
 <!--            <groupId>net.sf.ehcache</groupId>-->
 <!--            <artifactId>ehcache-core</artifactId>-->
 <!--            <version>2.6.11</version>-->
 <!--        </dependency>-->
+
+        <!-- Ehcache 3.x -->
+        <dependency>
+            <groupId>org.ehcache</groupId>
+            <artifactId>ehcache</artifactId>
+            <version>3.8.1</version>
+        </dependency>
 
         <!--        Ehcache 3-->
 <!--        <dependency>-->
@@ -54,16 +69,6 @@
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>
             <version>2.7.9</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>${slf4j.version}</version>
         </dependency>
 
         <!-- PostgreSQL -->
