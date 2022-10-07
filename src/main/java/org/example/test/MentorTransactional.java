@@ -4,16 +4,18 @@ import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
-import java.util.Set;
 
 /**
  * @author Kuznetsovka created 14.07.2022
+ * Transactional стратегия кэширования предоставляет поддержку для транзакционных кэш-провайдеров,
+ * таких как JBoss TreeCache. Использовать такой кэш вы можете только в JTA-окружении, и для начала
+ * вам нужно будет указать hibernate.transaction.manager_lookup_class.
  */
 
-@Entity(name = "mentors_write_and_write")
+@Entity(name = "mentors_transaction")
 @Cacheable
 @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.TRANSACTIONAL)
-public class MentorReadOnly {
+public class MentorTransactional {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,10 +27,10 @@ public class MentorReadOnly {
 
   public LocalDateTime birthday;
 
-  public MentorReadOnly() {
+  public MentorTransactional() {
   }
 
-  public MentorReadOnly(Long id, String name, String surname, LocalDateTime birthday) {
+  public MentorTransactional(Long id, String name, String surname, LocalDateTime birthday) {
     this.id = id;
     this.name = name;
     this.surname = surname;

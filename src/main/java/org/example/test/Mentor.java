@@ -12,7 +12,13 @@ import java.util.Set;
 
 @Entity(name = "mentors")
 @Cacheable
-@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+/*
+* @Cache(include = )
+* include(необязательно: по умолчанию all)
+* non-lazy: указывает, что свойства объекта, сопоставленные с lazy="true",
+* не могут быть кэшированы, если включена отложенная выборка на уровне атрибута.
+* */
+//@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 @NamedQuery(name = "Mentor.getBySurname", query = "select e from mentors e where e.surname=:surname",
     hints = { @QueryHint(name = "org.hibernate.cacheable", value = "true") })
 public class Mentor {
@@ -26,6 +32,8 @@ public class Mentor {
   public String surname;
 
   public LocalDateTime birthday;
+
+  /*   */
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
           name = "student_mentor",
@@ -34,6 +42,12 @@ public class Mentor {
   public Set<Student> students;
 
   public Mentor() {
+  }
+
+  public Mentor(Long id, String name, String surname) {
+    this.id = id;
+    this.name = name;
+    this.surname = surname;
   }
 
   public Mentor(Long id, String name, String surname, LocalDateTime birthday, Set<Student> students) {

@@ -20,7 +20,6 @@
             <artifactId>hibernate-core</artifactId>
             <version>${hibernate.version}</version>
         </dependency>
-
         <!-- Hibernate Jcache (Для EhCache 3.0 ) -->
         <dependency>
             <groupId>org.hibernate</groupId>

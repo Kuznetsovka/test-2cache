@@ -27,6 +27,12 @@ public class Student {
           inverseJoinColumns = @JoinColumn(name = "course_id"))
   Set<Course> courses;
 
+  public Student(Long id, String name, String surname) {
+    this.id = id;
+    this.name = name;
+    this.surname = surname;
+  }
+
   public Student() {
   }
 

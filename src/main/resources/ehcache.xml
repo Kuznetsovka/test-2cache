@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.ehcache.org/v3"
+        xmlns:jsr107="http://www.ehcache.org/v3/jsr107"
+        xsi:schemaLocation="
+            http://www.ehcache.org/v3 http://www.ehcache.org/schema/ehcache-core-3.0.xsd
+            http://www.ehcache.org/v3/jsr107 http://www.ehcache.org/schema/ehcache-107-ext-3.0.xsd">
+
+    <service>
+        <jsr107:defaults enable-management="true" enable-statistics="true"/>
+    </service>
+
+    <cache-template name="template">
+        <expiry>
+            <ttl>1</ttl>
+        </expiry>
+        <heap unit="entries">100</heap>
+    </cache-template>
+
+<!--    <cache alias="org.example.test.Mentor">-->
+<!--        <key-type>java.lang.String</key-type>-->
+<!--        <value-type>java.lang.String</value-type>-->
+<!--        <expiry>-->
+<!--            <ttl>1</ttl>-->
+<!--        </expiry>-->
+<!--        <heap unit="entries">100</heap>-->
+<!--    </cache>-->
+    <cache alias="org.example.test.Mentor" uses-template="template"/>
+
+</config>
+<!--
+Описание параметра конфигурации ehcache.xml:
+    name: Имя кэша.
+
+    maxElementsInMemoryМаксимальное количество кэшей.
+
+    eternal: Является ли объект в кэше постоянным. Если это так, настройка тайм-аута будет игнорироваться,
+    и объект никогда не истечет.
+
+    timeToIdleSeconds: Допустимое время простоя (единица измерения: секунды)
+    до того, как объект станет недействительным. Используется только в том случае,
+    если объект eternal = false недействителен, необязательный атрибут, значение по умолчанию равно 0,
+    то есть время простоя бесконечно.
+
+    timeToLiveSeconds: Время жизни (TTL) кэшированных данных, которое является максимальным
+    интервалом времени между созданием и окончанием элемента. Это действительно только в том случае,
+    если элемент не является постоянно резидентным. Если значение равно 0, это означает, что элемент
+    может быть приостановлен на бесконечный период время.
+    https://groups.google.com/g/ehcache-users/c/Jo3iIxI3hd8/m/jYMjGr9BBAAJ
+
+    maxEntriesLocalDisk: Когда количество объектов в памяти достигает maxElementsInMemory,
+    Ehcache записывает объекты на диск.
+
+    overflowToDisk: Включить ли дисковый кеш при недостаточной памяти.
+
+    diskSpoolBufferSizeMB: Этот параметр устанавливает размер области кэша DiskStore (дисковый кэш).
+    По умолчанию 30 МБ. Каждый кэш должен иметь свой собственный буфер.
+
+    maxElementsOnDisk: Максимальное количество кешей жесткого диска.
+
+    diskPersistent: Сохранять ли данные кэша жесткого диска при перезагрузке виртуальной машины.
+    Значение по умолчанию неверно.
+
+    diskExpiryThreadIntervalSeconds: Интервал для запуска потока сбоя диска, по умолчанию составляет 120 секунд.
+
+    memoryStoreEvictionPolicy: При достижении предела maxElementsInMemory Ehcache очистит память в соответствии с указанной стратегией.
+        LRU (наименее недавно использованный). (по умолчанию)
+        FIFO (первым пришел - первым обслужен)
+        LFU (меньше используется)
+
+    clearOnFlush: Очищать ли при максимальном объеме памяти.
+-->
