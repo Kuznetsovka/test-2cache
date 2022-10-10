@@ -8,8 +8,10 @@ import java.time.LocalDateTime;
 /**
  * @author Kuznetsovka created 14.07.2022
  * Transactional стратегия кэширования предоставляет поддержку для транзакционных кэш-провайдеров,
- * таких как JBoss TreeCache. Использовать такой кэш вы можете только в JTA-окружении, и для начала
- * вам нужно будет указать hibernate.transaction.manager_lookup_class.
+ * таких как JBoss TreeCache и EHCACHE(Hibernate 5.0, d 3-м не поддерживало). Использовать такой кэш вы можете
+ * только в JTA-окружении, и нужно будет указать hibernate.transaction.manager_lookup_class.
+ *
+ * Если нам нужен полностью транзакционный кеш. Подходит только в среде JTA.
  */
 
 @Entity(name = "mentors_transaction")

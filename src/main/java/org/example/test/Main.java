@@ -1,7 +1,7 @@
 package org.example.test;
 
 import org.hibernate.Session;
-import org.hibernate.query.Query;
+import org.hibernate.Transaction;
 import org.hibernate.stat.Statistics;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -38,11 +38,11 @@ public class Main {
 
   private static final Cache cache = session.getSessionFactory().getCache();
 
-  private static EntityManagerFactory emf = null;
+  private static final Transaction tr = session.getTransaction();
 
- // @BeforeAll
+  @BeforeAll
   public static void fillDB() {
-    session.getTransaction().begin();
+    tr.begin();
     Set<Student> students = new HashSet<>();
 
     Mentor mentor1 = new Mentor(1L, "Ментор1", "Петя");
@@ -55,9 +55,15 @@ public class Main {
     MentorTransactional mentor4 = new MentorTransactional(1L, "Ментор старый","Вася",
         LocalDateTime.of(2000,1,1, 0,0));
 
+    MentorNonstrict mentor5 = new MentorNonstrict(1L, "Ментор старый","Олег",
+        LocalDateTime.of(2000,1,1, 0,0));
+
     Student student1 = new Student(1L, "Студент1", "Кирилл");
     Student student2 = new Student(2L, "Студент2", "Сергей");
     Student student3 = new Student(3L, "Студент3", "Иван");
+
+
+
     session.merge(student1);
     session.merge(student2);
     session.merge(student3);
@@ -67,14 +73,16 @@ public class Main {
 
     mentor1.setStudents(students);
     mentor2.setStudents(Collections.singleton(student3));
+    mentor5.setStudents(Collections.singleton(student1));
     session.merge(mentor1);
     session.merge(mentor2);
     session.merge(mentor3);
     session.merge(mentor4);
+    session.merge(mentor5);
     session.flush();
-    session.getTransaction().commit();
+    tr.commit();
 
-    clearCache();
+    clearCache(true);
   }
 
   /**
@@ -103,7 +111,7 @@ public class Main {
     assertEquals(2, statictics.getQueryExecutionCount());
 
     
-    clearCache();
+    clearCache(true);
     // При этом в логе запросов запрос всего 2.
   }
 
@@ -131,7 +139,7 @@ public class Main {
     assertEquals(2, statictics.getQueryExecutionCount());
 
     
-    clearCache();
+    clearCache(true);
     // При этом в логе запросов запрос всего 2.
   }
 
@@ -159,7 +167,7 @@ public class Main {
     assertEquals(2, statictics.getQueryExecutionCount());
 
     
-    clearCache();
+    clearCache(true);
     // 2 запроса, кэш не срабатывает
   }
 
@@ -184,7 +192,7 @@ public class Main {
     assertEquals(1, statictics.getPrepareStatementCount());
 
     
-    clearCache();
+    clearCache(true);
     // 1 запрос
   }
 
@@ -214,7 +222,7 @@ public class Main {
     assertEquals(1, statictics.getSecondLevelCachePutCount());
 
     
-    clearCache();
+    clearCache(true);
 
     // 2 запроса. Кэш не отрабатывает
   }
@@ -243,7 +251,7 @@ public class Main {
     assertEquals(1, statictics.getSecondLevelCachePutCount());
 
     
-    clearCache();
+    clearCache(true);
 
     // 1 запроса. Только в этом случае отрабатывает Кэш 3-го уровня
     // Не срабатывыет при create-drop и инициализации таблицы
@@ -271,7 +279,7 @@ public class Main {
     assertEquals(1, statictics.getQueryExecutionCount());
 
     
-    clearCache();
+    clearCache(true);
     // При добавлении 3-го уровня Кэша, Кэш запросов, запрос будет 1, Обязательно указывать Hint в запросе
   }
 
@@ -293,7 +301,7 @@ public class Main {
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     // 1 запрос.
     
-    clearCache();
+    clearCache(true);
   }
 
   /**
@@ -310,7 +318,7 @@ public class Main {
 
     System.out.println("Количество 'объектов' во 2-м кэше:" + statictics.getSecondLevelCachePutCount());
     session.evict(mentor1); // Удаление объекта из кеша сессии
-    clearCache();           // Без очистки кэша объект не удалится
+    clearCache(false);           // Без очистки кэша объект не удалится
 
     System.out.println("Количество 'объектов' во 2-м кэше:" + statictics.getSecondLevelCachePutCount());
 
@@ -322,7 +330,7 @@ public class Main {
     assertEquals(2, statictics.getSecondLevelCachePutCount());
     // 1 запрос
     
-    clearCache();
+    clearCache(true);
   }
 
   /**
@@ -368,7 +376,7 @@ public class Main {
   @Test
   public void testCacheSecondTwoTransactional_start() {
     statictics.setStatisticsEnabled(true);
-    session.getTransaction().begin();
+    tr.begin();
     Mentor mentor1 = session.find(Mentor.class, 1L);
     System.out.println(mentor1.getName());
 
@@ -384,11 +392,11 @@ public class Main {
       sleep(Integer.MAX_VALUE);
     } while(false);
 
-    session.getTransaction().commit();
+    tr.commit();
 
     // 1 запрос.
 //    
-//    clearCache();
+//    clearCache(true);
   }
 
   /**
@@ -399,17 +407,17 @@ public class Main {
    */
   @Test
   public void testCacheSecondTwoTransactional_finish() {
-    session.getTransaction().begin();
+    tr.begin();
     statictics.setStatisticsEnabled(true);
     Mentor mentor1 = session.find(Mentor.class, 1L);
     System.out.println(mentor1.getName());
     assertEquals("Ментор1", mentor1.getName());
-    session.getTransaction().commit();
+    tr.commit();
     assertEquals(1, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     // 1 запрос.
     
-    clearCache();
+    clearCache(true);
   }
 
   /**
@@ -420,7 +428,7 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_Transactional() {
     statictics.setStatisticsEnabled(true);
-    session.getTransaction().begin();
+    tr.begin();
     Mentor mentor1 = session.find(Mentor.class, 1L);
     System.out.println(mentor1.getName());
 
@@ -429,10 +437,10 @@ public class Main {
 
     assertEquals(1, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
-    session.getTransaction().commit();
+    tr.commit();
     // 1 запрос.
     
-    clearCache();
+    clearCache(true);
   }
 
   /**
@@ -445,7 +453,7 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_WithChange_READ_AND_WRITE_Transactional() {
     statictics.setStatisticsEnabled(true);
-    session.getTransaction().begin();
+    tr.begin();
 
     System.out.println("**********  Начало 1 транзакции ********** ");
     Mentor mentor1 = session.find(Mentor.class, 1L);
@@ -462,15 +470,15 @@ public class Main {
     assertEquals("Ментор новый", mentor2.getName());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
 
-    session.getTransaction().commit();
+    tr.commit();
     // 1 запрос.
     
-    clearCache();
+    clearCache(true);
     // Для сброса в изначальное состояние
-    session.getTransaction().begin();
+    tr.begin();
     mentor1.setName("Ментор1");
     session.saveOrUpdate(mentor1);
-    session.getTransaction().commit();
+    tr.commit();
   }
 
   /**
@@ -483,7 +491,7 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_WithChange_READ_ONLY_Transactional() {
     statictics.setStatisticsEnabled(true);
-    session.getTransaction().begin();
+    tr.begin();
     MentorReadOnly mentor1 = session.find(MentorReadOnly.class, 1L);
     System.out.println(mentor1.getName());
 
@@ -495,10 +503,10 @@ public class Main {
 
     assertEquals("Ментор2", mentor2.getName());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
-    session.getTransaction().commit();
+    tr.commit();
     // 1 запрос.
     
-    clearCache();
+    clearCache(true);
   }
 
 
@@ -513,7 +521,7 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_WithChange_TRANSACTIONAL_Transactional_start() {
     statictics.setStatisticsEnabled(true);
-    session.getTransaction().begin();
+    tr.begin();
     System.out.println("**********  Начало 1 транзакции ********** ");
     MentorTransactional mentor1 = session.find(MentorTransactional.class, 1L);
     System.out.println("Имя ментора в базе: " + mentor1.getName());
@@ -529,15 +537,15 @@ public class Main {
     assertEquals("Ментор новый", mentor2.getName());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
 
-    session.getTransaction().commit();
+    tr.commit();
     System.out.println("**********  Конец 1 транзакции ********** ");
 
     // Для сброса в изначальное состояние
-    session.getTransaction().begin();
+    tr.begin();
     mentor1.setName("Ментор старый");
     session.saveOrUpdate(mentor1);
-    session.getTransaction().commit();
-    clearCache();
+    tr.commit();
+    clearCache(true);
   }
 
   /**
@@ -552,18 +560,203 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_WithChange_TRANSACTIONAL_Transactional_finish() {
     statictics.setStatisticsEnabled(true);
-    session.getTransaction().begin();
+    tr.begin();
     System.out.println("**********  Начало 2 транзакции ********** ");
     MentorTransactional mentor1 = session.find(MentorTransactional.class, 1L);
     System.out.println("Имя ментора в базе:" + mentor1.getName());
-
     assertEquals("Ментор новый", mentor1.getName());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
-
-    session.getTransaction().commit();
+    tr.commit();
     System.out.println("**********  Конец 2 транзакции ********** ");
-    clearCache();
+    clearCache(true);
     // 1 запрос.
+  }
+
+  /**
+   * Проверка кэша 2-го уровня в транзакции с изменением
+   * Начало
+   * Стратегия: NONSTRICT
+   * Результат: 1 запрос, второй запрос возвращает измененную сущность. Коммит исполняется
+   * Вывод: В рамках одной транзакции кэш отрабатывает сразу, до коммита.
+   */
+  @Test
+  public void testCacheSecondLevelFindMethodQuery_WithChange_NONSTRICT_Transactional() {
+    statictics.setStatisticsEnabled(true);
+    tr.begin();
+    System.out.println("**********  Начало 1 транзакции ********** ");
+    MentorNonstrict mentor1 = session.find(MentorNonstrict.class, 1L);
+    System.out.println("Имя ментора в базе: " + mentor1.getName());
+
+    mentor1.setName("Ментор новый");
+    session.persist(mentor1);
+    System.out.println("Новое имя ментора: " + mentor1.getName());
+
+    MentorNonstrict mentor2 = session.find(MentorNonstrict.class, 1L);
+
+    System.out.println("Имя ментора полученное из базы: " + mentor2.getName());
+
+    assertEquals("Ментор новый", mentor2.getName());
+    assertEquals(1, statictics.getSecondLevelCachePutCount());
+
+    tr.commit();
+    System.out.println("**********  Конец 1 транзакции ********** ");
+
+    // Для сброса в изначальное состояние
+    tr.begin();
+    mentor1.setName("Ментор старый");
+    session.saveOrUpdate(mentor1);
+    tr.commit();
+    clearCache(true);
+  }
+
+  /**
+   * Проверка кэша 2-го уровня в транзакции с изменением
+   * Конец
+   * Стратегия: NONSTRICT
+   * Результат: 1 запрос, второй запрос возвращает измененную сущность. Коммит исполняется
+   * Вывод: В рамках одной транзакции кэш отрабатывает сразу, до коммита.
+   */
+  @Test
+  public void testCacheSecondLevelFindMethodQuery_WithChange_NONSTRICT_Transactional_finish() {
+    statictics.setStatisticsEnabled(true);
+    tr.begin();
+    System.out.println("**********  Начало 2 транзакции ********** ");
+    MentorNonstrict mentor1 = session.find(MentorNonstrict.class, 1L);
+    System.out.println("Имя ментора в базе:" + mentor1.getName());
+
+    mentor1.setName("Ментор новый2");
+    session.persist(mentor1);
+
+    System.out.println("Новое имя ментора: " + mentor1.getName());
+
+    MentorNonstrict mentor2 = session.find(MentorNonstrict.class, 1L);
+
+    assertEquals("Ментор новый2", mentor1.getName());
+    assertEquals(1, statictics.getSecondLevelCachePutCount());
+
+    tr.commit();
+    System.out.println("**********  Конец 2 транзакции ********** ");
+    clearCache(true);
+    // 1 запрос.
+  }
+
+  /**
+   * Проверка кэша 2-го уровня в транзакции при удалении записи
+   * Стратегия: WRITE_READ
+   * Результат: 2 запроса. До окончания транзакции сущность уже меняет состояние на null.
+   * Вывод: Имеем 2 запроса, но данные возвращаются из cache? т.к. в момент запроса в базе объект еще не удален.
+   */
+  @Test
+  public void testCacheSecondLevelFindMethodQuery_Delete() {
+    statictics.setStatisticsEnabled(true);
+    tr.begin();
+    Mentor mentor1 = session.find(Mentor.class, 1L);
+    System.out.println(mentor1.getName());
+    assertEquals(0, statictics.getUpdateTimestampsCachePutCount());
+    assertEquals(0, statictics.getEntityDeleteCount());
+    session.remove(mentor1);
+    session.flush();
+    assertEquals(2, statictics.getUpdateTimestampsCachePutCount());
+    assertEquals(1, statictics.getEntityDeleteCount());
+    Mentor mentor2 = session.find(Mentor.class, 1L);
+    System.out.println("Сущность = " + mentor2);
+    assertNull(mentor2);
+    assertEquals(4, statictics.getPrepareStatementCount());
+    assertEquals(1, statictics.getSecondLevelCachePutCount());
+    tr.commit();
+    clearCache(true);
+  }
+
+
+  /**
+   * Проверка кэша 2-го уровня в транзакции при удалении записи
+   * Стратегия: NONSTRICT_READ_WRITE
+   * Результат: 2 запроса. До окончания транзакции сущность уже меняет состояние на null.
+   * Вывод: Имеем 2 запроса, но данные возвращаются из cache т.к. в момент запроса в базе объект еще не удален.
+   */
+  @Test
+  public void testCacheSecondLevelFindMethodQuery_Delete_2() {
+    statictics.setStatisticsEnabled(true);
+    tr.begin();
+    MentorNonstrict mentor1 = session.find(MentorNonstrict.class, 1L);
+    System.out.println(mentor1.getName());
+    assertEquals(0, statictics.getUpdateTimestampsCachePutCount());
+    assertEquals(0, statictics.getEntityDeleteCount());
+    session.remove(mentor1);
+    session.flush();
+    assertEquals(1, statictics.getUpdateTimestampsCachePutCount());
+    assertEquals(1, statictics.getEntityDeleteCount());
+    MentorNonstrict mentor2 = session.find(MentorNonstrict.class, 1L);
+    System.out.println("Сущность = " + mentor2);
+    assertNull(mentor2);
+    assertEquals(3, statictics.getPrepareStatementCount());
+    assertEquals(1, statictics.getSecondLevelCachePutCount());
+    tr.commit();
+    clearCache(true);
+  }
+
+  /**
+   * Проверка кэша 2-го уровня в транзакции при удалении записи
+   * Стратегия: READ_ONLY
+   * Результат: 2 запроса. До окончания транзакции сущность уже меняет состояние на null.
+   * Вывод: Имеем 2 запроса, но данные возвращаются из cache т.к. в момент запроса в базе объект еще не удален.
+   */
+  @Test
+  public void testCacheSecondLevelFindMethodQuery_Delete_3() {
+    statictics.setStatisticsEnabled(true);
+    tr.begin();
+    MentorNonstrict mentor1 = session.find(MentorNonstrict.class, 1L);
+    System.out.println(mentor1.getName());
+    assertEquals(0, statictics.getUpdateTimestampsCachePutCount());
+    assertEquals(0, statictics.getEntityDeleteCount());
+    session.remove(mentor1);
+    session.flush();
+    assertEquals(2, statictics.getUpdateTimestampsCachePutCount());
+    assertEquals(1, statictics.getEntityDeleteCount());
+    MentorNonstrict mentor2 = session.find(MentorNonstrict.class, 1L);
+    System.out.println("Сущность = " + mentor2);
+    assertNull(mentor2);
+    assertEquals(4, statictics.getPrepareStatementCount());
+    assertEquals(1, statictics.getSecondLevelCachePutCount());
+
+    clearCache(true);
+  }
+
+  /**
+   * Проверка кэша 2-го уровня в связной коллекцией
+   * Результат: 2 запрос, при первом обращении кэшируемый объект попадает в КЭШ 2-го уровня.
+   * Вывод: При использовании некэшируемой коллекции, доп. запросов так-же нет, но и 2-й КЭШ он не попадает.
+   * Следовательно объект попадает в первый КЭШ.
+   */
+  @Test
+  public void testCacheSecondLevelForCollection() {
+    statictics.setStatisticsEnabled(true);
+    Mentor mentor1 = session.find(Mentor.class, 1L);
+    assertEquals(1, statictics.getSecondLevelCachePutCount());
+    Integer count = mentor1.getStudents().size(); // первое обращение к коллекции студентов
+    assertEquals(2, statictics.getSecondLevelCachePutCount());
+
+    for (Student student : mentor1.getStudents()) {
+      System.out.println("Имя студента: " + student.getName());
+    }
+    assertEquals(2, statictics.getSecondLevelCachePutCount());
+    assertEquals(2, statictics.getPrepareStatementCount());
+
+    clearCache(true);
+
+    MentorNonstrict mentor2 = session.find(MentorNonstrict.class, 1L);
+
+    int count2 = mentor2.getStudents().size(); // первое обращение к коллекции студентов
+
+    assertEquals(1, statictics.getSecondLevelCachePutCount());
+
+    for (Student student : mentor1.getStudents()) {
+      System.out.println("Имя студента: " + student.getName());
+    }
+    assertEquals(1, statictics.getSecondLevelCachePutCount());
+    assertEquals(2, statictics.getPrepareStatementCount());
+
+    clearCache(true);
   }
 
   private void sleep(int milliseconds) {
@@ -574,22 +767,18 @@ public class Main {
     }
   }
 
-  private static void naming(Student user, String name, String surname) {
-    user.setName(name);
-    user.setSurname(surname);
-  }
-
   private static Session initSessionFactory() {
-    emf = Persistence.createEntityManagerFactory("default");
+    EntityManagerFactory emf = Persistence.createEntityManagerFactory("default");
     return emf.createEntityManager().unwrap(org.hibernate.Session.class);
   }
 
-  private static void clearCache() {
+  private static void clearCache(boolean isClearStatistic) {
     if (cache != null) {
       session.clear();
       cache.evictAll();
     }
-    statictics.clear();
+    if(isClearStatistic)
+      statictics.clear();
     // session.evict(Mentor); Удаление из кэша 1-го уровня.
     // sessionFactory.evict(Mentor.class, mentorId); Удаление из кэша определенного объекта
     // sessionFactory.evict(Mentor.class); Удаление из кэша вссе объекты указанного класса

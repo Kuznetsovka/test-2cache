@@ -17,6 +17,7 @@ import java.util.Set;
 * include(необязательно: по умолчанию all)
 * non-lazy: указывает, что свойства объекта, сопоставленные с lazy="true",
 * не могут быть кэшированы, если включена отложенная выборка на уровне атрибута.
+* READ_WRITE не обеспечивает уровень изоляции SERIALIZABLE
 * */
 //@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 @NamedQuery(name = "Mentor.getBySurname", query = "select e from mentors e where e.surname=:surname",
@@ -34,6 +35,7 @@ public class Mentor {
   public LocalDateTime birthday;
 
   /*   */
+  @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
           name = "student_mentor",
