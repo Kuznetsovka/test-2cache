@@ -22,8 +22,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 /**
@@ -300,6 +299,30 @@ public class Main {
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     // 1 запрос.
     
+    clearCache(true);
+  }
+
+  /**
+   * Проверка кэша 2-го уровня
+   * Результат: 1 запроса.
+   * Вывод: Работает 2-ой кэш
+   */
+  @Test
+  public void testCacheSecondLevelFindMethodQuery2() {
+    EntityManager em1 = session.getEntityManagerFactory().createEntityManager();
+    EntityManager em2 = session.getEntityManagerFactory().createEntityManager();
+    statictics.setStatisticsEnabled(true);
+    Mentor mentor1 = em1.find(Mentor.class, 1L);
+    System.out.println(mentor1.getName());
+
+    Mentor mentor2 = em2.find(Mentor.class, 1L);
+    System.out.println(mentor2.getName());
+
+    assertNotEquals(em1, em2);
+    assertEquals(1, statictics.getPrepareStatementCount());
+    assertEquals(1, statictics.getSecondLevelCachePutCount());
+    // 1 запрос.
+
     clearCache(true);
   }
 
