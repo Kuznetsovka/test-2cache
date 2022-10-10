@@ -1,7 +1,6 @@
 package org.example.test;
 
 import org.hibernate.Session;
-import org.hibernate.Transaction;
 import org.hibernate.stat.Statistics;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -14,6 +13,7 @@ import javax.cache.expiry.CreatedExpiryPolicy;
 import javax.cache.expiry.Duration;
 import javax.cache.spi.CachingProvider;
 import javax.persistence.Cache;
+import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
 import java.time.LocalDateTime;
@@ -38,11 +38,11 @@ public class Main {
 
   private static final Cache cache = session.getSessionFactory().getCache();
 
-  private static final Transaction tr = session.getTransaction();
 
   @BeforeAll
   public static void fillDB() {
-    tr.begin();
+
+    session.getTransaction().begin();
     Set<Student> students = new HashSet<>();
 
     Mentor mentor1 = new Mentor(1L, "Ментор1", "Петя");
@@ -80,8 +80,8 @@ public class Main {
     session.merge(mentor4);
     session.merge(mentor5);
     session.flush();
-    tr.commit();
-
+    session.getTransaction().commit();
+    cache.evictAll();
     clearCache(true);
   }
 
@@ -151,7 +151,6 @@ public class Main {
   @Test
   public void testCacheFirstLevelNamedQuery() {
     statictics.setStatisticsEnabled(true);
-    Mentor user = new Mentor();
     Student student1 = session.createNamedQuery("Student.getBySurname", Student.class)
         .setParameter("surname", "Сергей")
         .getSingleResult();
@@ -336,7 +335,8 @@ public class Main {
   /**
    * Проверка очистки кэша по таймауту
    * Результат: Настроить общий кэш в ehcache.xml с таймаутом безрезультатно
-   * Вывод: Есть возможность настроить динамический кэш
+   * Вывод: Есть возможность настроить динамический кэш https://www.ehcache.org/documentation/3.0/107.html#supplement-jsr-107-configurations
+   *
    */
   @Test
   public void testCacheSecondLevelFindMethodQueryHandleTimeout() {
@@ -376,7 +376,8 @@ public class Main {
   @Test
   public void testCacheSecondTwoTransactional_start() {
     statictics.setStatisticsEnabled(true);
-    tr.begin();
+    EntityManager em = session.getEntityManagerFactory().createEntityManager();
+    em.getTransaction().begin();
     Mentor mentor1 = session.find(Mentor.class, 1L);
     System.out.println(mentor1.getName());
 
@@ -384,7 +385,7 @@ public class Main {
 
     mentor1.setName("Ментор2");
 
-    session.persist(mentor1);
+    em.persist(mentor1);
 
     assertEquals("Ментор2", mentor1.getName());
 
@@ -392,7 +393,7 @@ public class Main {
       sleep(Integer.MAX_VALUE);
     } while(false);
 
-    tr.commit();
+    em.getTransaction().commit();
 
     // 1 запрос.
 //    
@@ -407,12 +408,13 @@ public class Main {
    */
   @Test
   public void testCacheSecondTwoTransactional_finish() {
-    tr.begin();
+    EntityManager em = session.getEntityManagerFactory().createEntityManager();
+    em.getTransaction().begin();
     statictics.setStatisticsEnabled(true);
     Mentor mentor1 = session.find(Mentor.class, 1L);
     System.out.println(mentor1.getName());
     assertEquals("Ментор1", mentor1.getName());
-    tr.commit();
+    em.getTransaction().commit();
     assertEquals(1, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     // 1 запрос.
@@ -428,7 +430,8 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_Transactional() {
     statictics.setStatisticsEnabled(true);
-    tr.begin();
+    EntityManager em = session.getEntityManagerFactory().createEntityManager();
+    em.getTransaction().begin();
     Mentor mentor1 = session.find(Mentor.class, 1L);
     System.out.println(mentor1.getName());
 
@@ -437,7 +440,7 @@ public class Main {
 
     assertEquals(1, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
-    tr.commit();
+    session.getTransaction().commit();
     // 1 запрос.
     
     clearCache(true);
@@ -452,15 +455,16 @@ public class Main {
    */
   @Test
   public void testCacheSecondLevelFindMethodQuery_WithChange_READ_AND_WRITE_Transactional() {
+    EntityManager em = session.getEntityManagerFactory().createEntityManager();
     statictics.setStatisticsEnabled(true);
-    tr.begin();
+    em.getTransaction().begin();
 
     System.out.println("**********  Начало 1 транзакции ********** ");
     Mentor mentor1 = session.find(Mentor.class, 1L);
     System.out.println("Имя ментора в базе: " + mentor1.getName());
 
     mentor1.setName("Ментор новый");
-    session.persist(mentor1);
+    em.persist(mentor1);
     System.out.println("Новое имя ментора: " + mentor1.getName());
 
     Mentor mentor2 = session.find(Mentor.class, 1L);
@@ -470,15 +474,15 @@ public class Main {
     assertEquals("Ментор новый", mentor2.getName());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
 
-    tr.commit();
+    em.getTransaction().commit();
     // 1 запрос.
     
     clearCache(true);
     // Для сброса в изначальное состояние
-    tr.begin();
+    session.getTransaction().begin();
     mentor1.setName("Ментор1");
     session.saveOrUpdate(mentor1);
-    tr.commit();
+    session.getTransaction().commit();
   }
 
   /**
@@ -491,19 +495,20 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_WithChange_READ_ONLY_Transactional() {
     statictics.setStatisticsEnabled(true);
-    tr.begin();
+    EntityManager em = session.getEntityManagerFactory().createEntityManager();
+    em.getTransaction().begin();
     MentorReadOnly mentor1 = session.find(MentorReadOnly.class, 1L);
     System.out.println(mentor1.getName());
 
     mentor1.setName("Ментор2");
-    session.persist(mentor1);
+    em.persist(mentor1);
 
     MentorReadOnly mentor2 = session.find(MentorReadOnly.class, 1L);
     System.out.println(mentor2.getName());
 
     assertEquals("Ментор2", mentor2.getName());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
-    tr.commit();
+    em.getTransaction().commit();
     // 1 запрос.
     
     clearCache(true);
@@ -521,13 +526,14 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_WithChange_TRANSACTIONAL_Transactional_start() {
     statictics.setStatisticsEnabled(true);
-    tr.begin();
+    EntityManager em = session.getEntityManagerFactory().createEntityManager();
+    em.getTransaction().begin();
     System.out.println("**********  Начало 1 транзакции ********** ");
     MentorTransactional mentor1 = session.find(MentorTransactional.class, 1L);
     System.out.println("Имя ментора в базе: " + mentor1.getName());
 
     mentor1.setName("Ментор новый");
-    session.persist(mentor1);
+    em.persist(mentor1);
     System.out.println("Новое имя ментора: " + mentor1.getName());
 
     MentorTransactional mentor2 = session.find(MentorTransactional.class, 1L);
@@ -537,14 +543,14 @@ public class Main {
     assertEquals("Ментор новый", mentor2.getName());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
 
-    tr.commit();
+    em.getTransaction().commit();
     System.out.println("**********  Конец 1 транзакции ********** ");
 
     // Для сброса в изначальное состояние
-    tr.begin();
+    session.getTransaction().begin();
     mentor1.setName("Ментор старый");
     session.saveOrUpdate(mentor1);
-    tr.commit();
+    session.getTransaction().commit();
     clearCache(true);
   }
 
@@ -560,13 +566,14 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_WithChange_TRANSACTIONAL_Transactional_finish() {
     statictics.setStatisticsEnabled(true);
-    tr.begin();
+    EntityManager em = session.getEntityManagerFactory().createEntityManager();
+    em.getTransaction().begin();
     System.out.println("**********  Начало 2 транзакции ********** ");
     MentorTransactional mentor1 = session.find(MentorTransactional.class, 1L);
     System.out.println("Имя ментора в базе:" + mentor1.getName());
     assertEquals("Ментор новый", mentor1.getName());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
-    tr.commit();
+    em.getTransaction().commit();
     System.out.println("**********  Конец 2 транзакции ********** ");
     clearCache(true);
     // 1 запрос.
@@ -582,13 +589,14 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_WithChange_NONSTRICT_Transactional() {
     statictics.setStatisticsEnabled(true);
-    tr.begin();
+    EntityManager em = session.getEntityManagerFactory().createEntityManager();
+    em.getTransaction().begin();
     System.out.println("**********  Начало 1 транзакции ********** ");
     MentorNonstrict mentor1 = session.find(MentorNonstrict.class, 1L);
     System.out.println("Имя ментора в базе: " + mentor1.getName());
 
     mentor1.setName("Ментор новый");
-    session.persist(mentor1);
+    em.persist(mentor1);
     System.out.println("Новое имя ментора: " + mentor1.getName());
 
     MentorNonstrict mentor2 = session.find(MentorNonstrict.class, 1L);
@@ -598,14 +606,14 @@ public class Main {
     assertEquals("Ментор новый", mentor2.getName());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
 
-    tr.commit();
+    em.getTransaction().commit();
     System.out.println("**********  Конец 1 транзакции ********** ");
 
     // Для сброса в изначальное состояние
-    tr.begin();
+    session.getTransaction().begin();
     mentor1.setName("Ментор старый");
     session.saveOrUpdate(mentor1);
-    tr.commit();
+    session.getTransaction().commit();
     clearCache(true);
   }
 
@@ -619,13 +627,14 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_WithChange_NONSTRICT_Transactional_finish() {
     statictics.setStatisticsEnabled(true);
-    tr.begin();
+    EntityManager em = session.getEntityManagerFactory().createEntityManager();
+    em.getTransaction().begin();
     System.out.println("**********  Начало 2 транзакции ********** ");
     MentorNonstrict mentor1 = session.find(MentorNonstrict.class, 1L);
     System.out.println("Имя ментора в базе:" + mentor1.getName());
 
     mentor1.setName("Ментор новый2");
-    session.persist(mentor1);
+    em.persist(mentor1);
 
     System.out.println("Новое имя ментора: " + mentor1.getName());
 
@@ -634,7 +643,7 @@ public class Main {
     assertEquals("Ментор новый2", mentor1.getName());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
 
-    tr.commit();
+    em.getTransaction().commit();
     System.out.println("**********  Конец 2 транзакции ********** ");
     clearCache(true);
     // 1 запрос.
@@ -649,7 +658,7 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_Delete() {
     statictics.setStatisticsEnabled(true);
-    tr.begin();
+    session.getTransaction().begin();
     Mentor mentor1 = session.find(Mentor.class, 1L);
     System.out.println(mentor1.getName());
     assertEquals(0, statictics.getUpdateTimestampsCachePutCount());
@@ -663,7 +672,7 @@ public class Main {
     assertNull(mentor2);
     assertEquals(4, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
-    tr.commit();
+    session.getTransaction().commit();
     clearCache(true);
   }
 
@@ -677,7 +686,7 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_Delete_2() {
     statictics.setStatisticsEnabled(true);
-    tr.begin();
+    session.getTransaction().begin();
     MentorNonstrict mentor1 = session.find(MentorNonstrict.class, 1L);
     System.out.println(mentor1.getName());
     assertEquals(0, statictics.getUpdateTimestampsCachePutCount());
@@ -691,7 +700,7 @@ public class Main {
     assertNull(mentor2);
     assertEquals(3, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
-    tr.commit();
+    session.getTransaction().commit();
     clearCache(true);
   }
 
@@ -704,7 +713,7 @@ public class Main {
   @Test
   public void testCacheSecondLevelFindMethodQuery_Delete_3() {
     statictics.setStatisticsEnabled(true);
-    tr.begin();
+    session.getTransaction().begin();
     MentorNonstrict mentor1 = session.find(MentorNonstrict.class, 1L);
     System.out.println(mentor1.getName());
     assertEquals(0, statictics.getUpdateTimestampsCachePutCount());
@@ -781,10 +790,10 @@ public class Main {
       statictics.clear();
     // session.evict(Mentor); Удаление из кэша 1-го уровня.
     // sessionFactory.evict(Mentor.class, mentorId); Удаление из кэша определенного объекта
-    // sessionFactory.evict(Mentor.class); Удаление из кэша вссе объекты указанного класса
+    // sessionFactory.evict(Mentor.class); Удаление из кэша все объекты указанного класса
     // sessionFactory.evictCollection("Mentor.students", mentorId); удалить определенную коллекцию
     // sessionFactory.evictCollection("Mentor.students"); удалить все коллекции ментора
     // sessionFactory.evictQueries() очистка запросов из кэша.
-    // Возможно более точесная обновление запросов: Query.setCacheMode(CacheMode.REFRESH) + setCacheRegion()
+    // Возможно более точечное обновление запросов: Query.setCacheMode(CacheMode.REFRESH) + setCacheRegion()
   }
 }

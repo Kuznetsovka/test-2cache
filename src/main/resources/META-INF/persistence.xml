@@ -24,18 +24,18 @@
             <property name="hibernate.show_sql" value = "true"/>
 <!--            <property name="hibernate.format_sql" value = "true"/>-->
             <property name="hibernate.connection.provider_class" value="org.hibernate.connection.HikariCPConnectionProvider"/>
-            <property name="hibernate.cache.use_second_level_cache" value="true"/>
-            <property name="hibernate.transaction.manager_lookup_class" value="org.hibernate.transaction.BTMTransactionManagerLookup"/>
 
+            <property name="hibernate.cache.use_second_level_cache" value="true"/>
             <property name="hibernate.cache.region.factory_class" value="org.hibernate.cache.jcache.JCacheRegionFactory"/>
             <property name="hibernate.javax.cache.uri" value="ehcache.xml"/>
             <property name="hibernate.cache.provider_class" value="org.ehcache.jsr107.EhcacheCachingProvider"/>
+<!--            https://coderlessons.com/articles/java/proniknut-v-api-jcache-jsr-107-->
 
 <!--            <property name="hibernate.cache.region.factory_class" value="org.hibernate.cache.ehcache.EhCacheRegionFactory"/>-->
 <!--            <property name="hibernate.cache.cacheManagerName" value="basicCache"/>-->
 <!--            <property name="hibernate.cache.provider_class" value="org.hibernate.cache.EhCacheProvider"/>-->
 
-            <property name="hibernate.cache.use_query_cache" value="true" />
+            <property name="hibernate.cache.use_query_cache" value="true"/>
 
             <property name="hibernate.generate_statistics" value="true"/>
             <property name="hibernate.cache.use_structured_entries" value="true"/>
@@ -48,4 +48,5 @@ EHCache Большое комьюнити, поддержка, встроен в
 OSCache Мертв с 2013 года. Сырой для Hibernate
 SwarmCache с 2003 года, поддерживает Кластеризацию
 JBoss TreeCache - реплицированный транзакционный кэш с древовидной структурой 2006  год.
+Hazelcast - https://habr.com/ru/company/yoomoney/blog/332462/
 -->

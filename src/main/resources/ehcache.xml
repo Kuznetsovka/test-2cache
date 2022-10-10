@@ -7,12 +7,12 @@
             http://www.ehcache.org/v3/jsr107 http://www.ehcache.org/schema/ehcache-107-ext-3.0.xsd">
 
     <service>
-        <jsr107:defaults enable-management="true" enable-statistics="true"/>
+        <jsr107:defaults default-template="template" enable-management="true" enable-statistics="true"/>
     </service>
 
     <cache-template name="template">
         <expiry>
-            <ttl>1</ttl>
+            <ttl unit="seconds">1</ttl>
         </expiry>
         <heap unit="entries">100</heap>
     </cache-template>
@@ -25,7 +25,6 @@
 <!--        </expiry>-->
 <!--        <heap unit="entries">100</heap>-->
 <!--    </cache>-->
-    <cache alias="org.example.test.Mentor" uses-template="template"/>
 
 </config>
 <!--
