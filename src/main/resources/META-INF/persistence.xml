@@ -32,7 +32,6 @@
 <!--            https://coderlessons.com/articles/java/proniknut-v-api-jcache-jsr-107-->
 
 <!--            <property name="hibernate.cache.region.factory_class" value="org.hibernate.cache.ehcache.EhCacheRegionFactory"/>-->
-<!--            <property name="hibernate.cache.cacheManagerName" value="basicCache"/>-->
 <!--            <property name="hibernate.cache.provider_class" value="org.hibernate.cache.EhCacheProvider"/>-->
 
             <property name="hibernate.cache.use_query_cache" value="true"/>

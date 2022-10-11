@@ -12,7 +12,7 @@
 
     <cache-template name="template">
         <expiry>
-            <ttl unit="seconds">1</ttl>
+            <ttl unit="minutes">5</ttl>
         </expiry>
         <heap unit="entries">100</heap>
     </cache-template>

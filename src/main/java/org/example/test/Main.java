@@ -38,14 +38,14 @@ public class Main {
   private static final Cache cache = session.getSessionFactory().getCache();
 
 
-  @BeforeAll
+  //@BeforeAll
   public static void fillDB() {
 
     session.getTransaction().begin();
     Set<Student> students = new HashSet<>();
 
     Mentor mentor1 = new Mentor(1L, "Ментор1", "Петя");
-
+    MentorWithStudent mentor6 = new MentorWithStudent(1L, "Ментор1", "Петя");
     Mentor mentor2 = new Mentor(2L, "Ментор2","Cо студентами");
 
     MentorReadOnly mentor3 = new MentorReadOnly(1L, "Ментор3","Артем",
@@ -72,15 +72,15 @@ public class Main {
 
     mentor1.setStudents(students);
     mentor2.setStudents(Collections.singleton(student3));
-    mentor5.setStudents(Collections.singleton(student1));
+    mentor6.setStudents(students);
     session.merge(mentor1);
     session.merge(mentor2);
     session.merge(mentor3);
     session.merge(mentor4);
     session.merge(mentor5);
+    session.merge(mentor6);
     session.flush();
     session.getTransaction().commit();
-    cache.evictAll();
     clearCache(true);
   }
 
@@ -408,8 +408,8 @@ public class Main {
 
     mentor1.setName("Ментор2");
 
-    em.persist(mentor1);
-
+    em.merge(mentor1);
+    em.flush();
     assertEquals("Ментор2", mentor1.getName());
 
     do {
@@ -463,7 +463,7 @@ public class Main {
 
     assertEquals(1, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
-    session.getTransaction().commit();
+    em.getTransaction().commit();
     // 1 запрос.
     
     clearCache(true);
@@ -483,14 +483,15 @@ public class Main {
     em.getTransaction().begin();
 
     System.out.println("**********  Начало 1 транзакции ********** ");
-    Mentor mentor1 = session.find(Mentor.class, 1L);
+    Mentor mentor1 = em.find(Mentor.class, 1L);
     System.out.println("Имя ментора в базе: " + mentor1.getName());
 
     mentor1.setName("Ментор новый");
-    em.persist(mentor1);
+    em.merge(mentor1);
+    em.flush();
     System.out.println("Новое имя ментора: " + mentor1.getName());
 
-    Mentor mentor2 = session.find(Mentor.class, 1L);
+    Mentor mentor2 = em.find(Mentor.class, 1L);
 
     System.out.println("Имя ментора полученное из КЭШа в рамках транзакции: " + mentor2.getName());
 
@@ -502,10 +503,11 @@ public class Main {
     
     clearCache(true);
     // Для сброса в изначальное состояние
-    session.getTransaction().begin();
+    em.getTransaction().begin();
     mentor1.setName("Ментор1");
-    session.saveOrUpdate(mentor1);
-    session.getTransaction().commit();
+    em.merge(mentor1);
+    em.flush();
+    em.getTransaction().commit();
   }
 
   /**
@@ -524,8 +526,8 @@ public class Main {
     System.out.println(mentor1.getName());
 
     mentor1.setName("Ментор2");
-    em.persist(mentor1);
-
+    em.merge(mentor1);
+    em.flush();
     MentorReadOnly mentor2 = session.find(MentorReadOnly.class, 1L);
     System.out.println(mentor2.getName());
 
@@ -537,8 +539,7 @@ public class Main {
     clearCache(true);
   }
 
-
-  /**
+  /** Не забыть выключить BeforeAll
    * Проверка кэша 2-го уровня в транзакции с изменением
    * Начало
    * Стратегия: TRANSACTIONAL
@@ -547,24 +548,24 @@ public class Main {
    * Примечание: Встроенные поставщики кэша не поддерживают блокировку.
    */
   @Test
-  public void testCacheSecondLevelFindMethodQuery_WithChange_TRANSACTIONAL_Transactional_start() {
+  public void testCacheSecondLevelFindMethodQuery_EM_WithChange_TRANSACTIONAL_Transactional_start() {
     statictics.setStatisticsEnabled(true);
     EntityManager em = session.getEntityManagerFactory().createEntityManager();
     em.getTransaction().begin();
     System.out.println("**********  Начало 1 транзакции ********** ");
-    MentorTransactional mentor1 = session.find(MentorTransactional.class, 1L);
+    MentorTransactional mentor1 = em.find(MentorTransactional.class, 1L);
     System.out.println("Имя ментора в базе: " + mentor1.getName());
-
     mentor1.setName("Ментор новый");
-    em.persist(mentor1);
+    em.merge(mentor1);
+    em.flush();
     System.out.println("Новое имя ментора: " + mentor1.getName());
 
-    MentorTransactional mentor2 = session.find(MentorTransactional.class, 1L);
+    MentorTransactional mentor2 = em.find(MentorTransactional.class, 1L);
 
     System.out.println("Имя ментора полученное из КЭШа в рамках транзакции: " + mentor2.getName());
 
     assertEquals("Ментор новый", mentor2.getName());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
+    assertEquals(2, statictics.getSecondLevelCachePutCount());
 
     em.getTransaction().commit();
     System.out.println("**********  Конец 1 транзакции ********** ");
@@ -587,12 +588,12 @@ public class Main {
    * В версии Hibernate 5.0 трназакционный уровень стал доступен только в JTA-окружении.
    */
   @Test
-  public void testCacheSecondLevelFindMethodQuery_WithChange_TRANSACTIONAL_Transactional_finish() {
+  public void testCacheSecondLevelFindMethodQuery_EM_WithChange_TRANSACTIONAL_Transactional_finish() {
     statictics.setStatisticsEnabled(true);
     EntityManager em = session.getEntityManagerFactory().createEntityManager();
     em.getTransaction().begin();
     System.out.println("**********  Начало 2 транзакции ********** ");
-    MentorTransactional mentor1 = session.find(MentorTransactional.class, 1L);
+    MentorTransactional mentor1 = em.find(MentorTransactional.class, 1L);
     System.out.println("Имя ментора в базе:" + mentor1.getName());
     assertEquals("Ментор новый", mentor1.getName());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
@@ -615,14 +616,15 @@ public class Main {
     EntityManager em = session.getEntityManagerFactory().createEntityManager();
     em.getTransaction().begin();
     System.out.println("**********  Начало 1 транзакции ********** ");
-    MentorNonstrict mentor1 = session.find(MentorNonstrict.class, 1L);
+    MentorNonstrict mentor1 = em.find(MentorNonstrict.class, 1L);
     System.out.println("Имя ментора в базе: " + mentor1.getName());
 
     mentor1.setName("Ментор новый");
-    em.persist(mentor1);
+    em.merge(mentor1);
+    em.flush();
     System.out.println("Новое имя ментора: " + mentor1.getName());
 
-    MentorNonstrict mentor2 = session.find(MentorNonstrict.class, 1L);
+    MentorNonstrict mentor2 = em.find(MentorNonstrict.class, 1L);
 
     System.out.println("Имя ментора полученное из базы: " + mentor2.getName());
 
@@ -644,7 +646,7 @@ public class Main {
    * Проверка кэша 2-го уровня в транзакции с изменением
    * Конец
    * Стратегия: NONSTRICT
-   * Результат: 1 запрос, второй запрос возвращает измененную сущность. Коммит исполняется
+   * Результат: 1 запрос: вернет Ментор новый2, 2 из кэша Ментор новый2
    * Вывод: В рамках одной транзакции кэш отрабатывает сразу, до коммита.
    */
   @Test
@@ -653,13 +655,88 @@ public class Main {
     EntityManager em = session.getEntityManagerFactory().createEntityManager();
     em.getTransaction().begin();
     System.out.println("**********  Начало 2 транзакции ********** ");
+    MentorNonstrict mentor1 = em.find(MentorNonstrict.class, 1L);
+    System.out.println("Имя ментора в базе:" + mentor1.getName());
+
+    mentor1.setName("Ментор новый2");
+    em.merge(mentor1);
+    em.flush();
+
+    System.out.println("Новое имя ментора: " + mentor1.getName());
+    assertEquals("Ментор новый2", mentor1.getName());
+
+    MentorNonstrict mentor2 = em.find(MentorNonstrict.class, 1L);
+
+    assertEquals("Ментор новый2", mentor2.getName());
+    assertEquals(1, statictics.getSecondLevelCachePutCount());
+
+    em.getTransaction().commit();
+    System.out.println("**********  Конец 2 транзакции ********** ");
+    clearCache(true);
+    // 1 запрос.
+  }
+
+  /**
+   * Проверка кэша 2-го уровня в транзакции с изменением
+   * Начало
+   * Стратегия: WRITE_READ
+   * Результат: 1 запрос, второй запрос возвращает измененную сущность. Коммит исполняется
+   * Вывод: В рамках одной транзакции кэш отрабатывает сразу, до коммита.
+   */
+  @Test
+  public void testCacheSecondLevelFindMethodQuery_WithChange_WRITE_READ_Transactional_start() {
+    statictics.setStatisticsEnabled(true);
+    EntityManager em = session.getEntityManagerFactory().createEntityManager();
+    em.getTransaction().begin();
+    System.out.println("**********  Начало 1 транзакции ********** ");
+    Mentor mentor1 = em.find(Mentor.class, 1L);
+    System.out.println("Имя ментора в базе: " + mentor1.getName());
+
+    mentor1.setName("Ментор новый");
+    em.merge(mentor1);
+    em.flush();
+    System.out.println("Новое имя ментора: " + mentor1.getName());
+
+    Mentor mentor2 = em.find(Mentor.class, 1L);
+
+    System.out.println("Имя ментора полученное из базы: " + mentor2.getName());
+
+    assertEquals("Ментор новый", mentor2.getName());
+    assertEquals(1, statictics.getSecondLevelCachePutCount());
+
+    em.getTransaction().commit();
+    System.out.println("**********  Конец 1 транзакции ********** ");
+
+    // Для сброса в изначальное состояние
+    session.getTransaction().begin();
+    mentor1.setName("Ментор старый");
+    session.saveOrUpdate(mentor1);
+    session.getTransaction().commit();
+    clearCache(true);
+  }
+
+  /**
+   * Проверка кэша 2-го уровня в транзакции с изменением
+   * Конец
+   * Стратегия: WRITE_READ
+   * Результат: 1 запрос: вернет Ментор новый, 2 из кэша Ментор новый2
+   * Вывод: В рамках одной транзакции кэш отрабатывает сразу, до коммита.
+   */
+  @Test
+  public void testCacheSecondLevelFindMethodQuery_WithChange_WRITE_READ_Transactional_finish() {
+    statictics.setStatisticsEnabled(true);
+    EntityManager em = session.getEntityManagerFactory().createEntityManager();
+    em.getTransaction().begin();
+    System.out.println("**********  Начало 2 транзакции ********** ");
     MentorNonstrict mentor1 = session.find(MentorNonstrict.class, 1L);
     System.out.println("Имя ментора в базе:" + mentor1.getName());
 
     mentor1.setName("Ментор новый2");
-    em.persist(mentor1);
+    em.merge(mentor1);
+    em.flush();
 
     System.out.println("Новое имя ментора: " + mentor1.getName());
+    assertEquals("Ментор новый", mentor1.getName());
 
     MentorNonstrict mentor2 = session.find(MentorNonstrict.class, 1L);
 
@@ -757,8 +834,7 @@ public class Main {
   /**
    * Проверка кэша 2-го уровня в связной коллекцией
    * Результат: 2 запрос, при первом обращении кэшируемый объект попадает в КЭШ 2-го уровня.
-   * Вывод: При использовании некэшируемой коллекции, доп. запросов так-же нет, но и 2-й КЭШ он не попадает.
-   * Следовательно объект попадает в первый КЭШ.
+   * Вывод: При использовании некэшируемой коллекции, коллекции в Кэше не обнаружено.
    */
   @Test
   public void testCacheSecondLevelForCollection() {
@@ -776,17 +852,13 @@ public class Main {
 
     clearCache(true);
 
-    MentorNonstrict mentor2 = session.find(MentorNonstrict.class, 1L);
-
-    int count2 = mentor2.getStudents().size(); // первое обращение к коллекции студентов
-
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-
-    for (Student student : mentor1.getStudents()) {
-      System.out.println("Имя студента: " + student.getName());
-    }
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-    assertEquals(2, statictics.getPrepareStatementCount());
+    MentorWithStudent mentor2 = session.find(MentorWithStudent.class, 1L);
+     try {
+       int count2 = mentor2.getStudents().size();
+     } catch(Exception e) {
+       System.out.println("Коллекция слуденты не подгружены");
+     }
+    assertEquals(0, statictics.getSecondLevelCachePutCount());
 
     clearCache(true);
   }

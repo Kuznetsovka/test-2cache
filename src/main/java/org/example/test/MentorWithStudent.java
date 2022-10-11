@@ -8,15 +8,12 @@ import java.util.Set;
 
 /**
  * @author Kuznetsovka created 14.07.2022
- * Если маловероятно, что два отдельных потока транзакций могут обновлять один и тот же объект,
- * вы можете использовать стратегию нестрочного чтения-записи. У него меньше накладных расходов,
- * чем чтение-запись. Это полезно когда данные редко обновляются.
  */
 
-@Entity(name = "mentors_nonstrict")
+@Entity(name = "mentors_with_students")
 @Cacheable
-@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
-public class MentorNonstrict {
+//@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+public class MentorWithStudent {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,14 +25,28 @@ public class MentorNonstrict {
 
   public LocalDateTime birthday;
 
-  public MentorNonstrict() {
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+          name = "student_mentor_two",
+          joinColumns = @JoinColumn(name = "mentor_id"),
+          inverseJoinColumns = @JoinColumn(name = "student_id"))
+  public Set<Student> students;
+
+  public MentorWithStudent() {
   }
 
-  public MentorNonstrict(Long id, String name, String surname, LocalDateTime birthday) {
+  public MentorWithStudent(Long id, String name, String surname) {
+    this.id = id;
+    this.name = name;
+    this.surname = surname;
+  }
+
+  public MentorWithStudent(Long id, String name, String surname, LocalDateTime birthday, Set<Student> students) {
     this.id = id;
     this.name = name;
     this.surname = surname;
     this.birthday = birthday;
+    this.students = students;
   }
 
   public Long getId() {
@@ -69,4 +80,13 @@ public class MentorNonstrict {
   public void setBirthday(LocalDateTime birthday) {
     this.birthday = birthday;
   }
+
+  public Set<Student> getStudents() {
+    return students;
+  }
+
+  public void setStudents(Set<Student> students) {
+    this.students = students;
+  }
+
 }
