@@ -332,7 +332,7 @@ public class Test2 {
     MyThread t2 = new MyThread.Builder()
         .mentorNonstrict(MentorNonstrict.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
-        .methodName(MyThread.MethodName.CHANGE)
+        .methodName(MyThread.MethodName.NONE)
         .time(1000)
         .build();
     System.out.println("Запуск потоков");
@@ -353,7 +353,8 @@ public class Test2 {
   /**
    * Проверка кэша в кросстранзакционности
    * стратегия: WRITE_READ
-   * Результат: 1 запрос, объект берется из кэша 2го уровня 2-ой поток берет из кэша, если добавлено свойство  <property name="current_session_context_class" value = "thread"/>
+   * Результат: Блокировка сессии при двойной замене. Блокировка на уровке БД.
+   * Результат: 2 запроса, объект берется из базы
    * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
@@ -371,7 +372,7 @@ public class Test2 {
     MyThread t2 = new MyThread.Builder()
         .mentor(Mentor.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
-        .methodName(MyThread.MethodName.CHANGE)
+        .methodName(MyThread.MethodName.NONE)
         .time(1000)
         .build();
     System.out.println("Запуск потоков");
@@ -410,7 +411,7 @@ public class Test2 {
     MyThread t2 = new MyThread.Builder()
         .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
-        .methodName(MyThread.MethodName.CHANGE)
+        .methodName(MyThread.MethodName.NONE)
         .time(1000)
         .build();
     System.out.println("Запуск потоков");
