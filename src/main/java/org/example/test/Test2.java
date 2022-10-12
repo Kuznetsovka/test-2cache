@@ -271,9 +271,9 @@ public class Test2 {
   }
 
   /**
-   * Проверка кэша транзакционного изменения
-   * Результат: возврат объекта до изменения
-   * Вывод:
+   * Проверка кэша в кросстранзакционности
+   * Результат: 1 запрос, объект берется из кэша 2го уровня
+   * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
   public void testCacheSecondTwoTransactional() {
@@ -281,8 +281,18 @@ public class Test2 {
     CyclicBarrier barrier = new CyclicBarrier(2);
     CountDownLatch cdl = new CountDownLatch(2);
     ExecutorService executor = Executors.newFixedThreadPool(2);
-    MyThread t1 = new MyThread(Mentor.class, barrier, cdl,"1-Thread", MyThread.MethodName.CHANGE, 0);
-    MyThread t2 = new MyThread(Mentor.class, barrier, cdl,"2-Thread", MyThread.MethodName.NONE, 1000);
+    MyThread t1 = new MyThread.Builder()
+        .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
+        .name("1-Thread")
+        .methodName(MyThread.MethodName.NONE)
+        .time(0)
+        .build();
+    MyThread t2 = new MyThread.Builder()
+        .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
+        .name("2-Thread")
+        .methodName(MyThread.MethodName.NONE)
+        .time(1000)
+        .build();
     System.out.println("Запуск потоков");
     executor.execute(t1);
     executor.execute(t2);
