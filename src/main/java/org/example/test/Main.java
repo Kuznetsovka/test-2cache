@@ -207,7 +207,6 @@ public class Main {
 
     assertEquals(1, statictics.getPrepareStatementCount());
 
-
     clearCache(true);
     // 1 запрос
   }

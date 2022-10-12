@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 /**
@@ -43,10 +44,10 @@ public class Test2 {
   public static void fillDB() {
     List<Student> students = new ArrayList<>();
     em.getTransaction().begin();
-    Mentor mentor1 = new Mentor(1L, "Ментор1", "Петя");
-    Mentor mentor2 = new Mentor(2L, "Ментор2", "Cо студентами");
+    Mentor mentor1 = new Mentor(1L, "Ментор старый", "Петя");
+    Mentor mentor2 = new Mentor(2L, "Ментор старый", "Cо студентами");
 
-    MentorReadOnly mentor3 = new MentorReadOnly(1L, "Ментор3", "Артем",
+    MentorReadOnly mentor3 = new MentorReadOnly(1L, "Ментор старый", "Артем",
         LocalDateTime.of(2000, 1, 1, 0, 0));
 
     MentorTransactional mentor4 = new MentorTransactional(1L, "Ментор старый", "Вася",
@@ -113,20 +114,20 @@ public class Test2 {
     EntityManager em1 = emf.createEntityManager();
     EntityManager em2 = emf.createEntityManager();
 
-    student1 = em1.createQuery("select e from students e where e.id=:id", Student.class)
+    Student student3 = em1.createQuery("select e from students e where e.id=:id", Student.class)
         .setParameter("id", 1L)
         .getSingleResult();
 
-    System.out.println(student1.getName());
+    System.out.println(student3.getName());
 
-    student2 = em2.createQuery("select e from students e where e.id=:id", Student.class)
+    Student student4 = em2.createQuery("select e from students e where e.id=:id", Student.class)
         .setParameter("id", 1L)
         .getSingleResult();
 
-    System.out.println(student2.getName());
-    assertTrue(em1.contains(student1));
-    assertFalse(em2.contains(student1));
-    assertNotEquals(student1, student2);
+    System.out.println(student4.getName());
+    assertTrue(em1.contains(student3));
+    assertFalse(em2.contains(student3));
+    assertNotEquals(student3, student4);
 
     assertFalse(cache.contains(Student.class, 1L));
 
@@ -143,7 +144,6 @@ public class Test2 {
    * Результат: 2 запроса.
    * Вывод: Работает кэш 1-го уровня, хотя запрос и был отправлен.
    * При получении из разных EM не работает не один из кэшей.
-   * ??? Откуда берется объект ???
    */
   @Test
   public void testCacheFirstLevel_Cacheable() {
@@ -163,6 +163,7 @@ public class Test2 {
     assertEquals(mentor1, mentor2);
     assertEquals(2, statictics.getQueryExecutionCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
+    assertEquals(0, statictics.getSecondLevelCacheHitCount());
 
     clearCache(true);
 
@@ -184,149 +185,15 @@ public class Test2 {
 
     System.out.println(mentor2.getName());
 
-    assertNotEquals(mentor1, mentor2);
+    assertNotEquals(mentor1, mentor2); //Объекты взяты из базы, хоть и лежит в кэше 2-го уровня.
 
     assertTrue(cache.contains(Mentor.class, 1L));
 
     assertEquals(2, statictics.getQueryExecutionCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
-
+    assertEquals(0, statictics.getSecondLevelCacheHitCount()); // Объекты взяты из базы, хоть и лежит в кэше 2-го уровня.
     clearCache(true);
 
-  }
-
-  /**
-   * Проверка кэша 3-го уровня
-   * Результат: 2 запроса.
-   * Вывод: Запросы кладутся в кэш 3-го уровня, хотя идут 2 запроса.
-   * При запросе из разных EM, идет 1 запрос. Объект получен из 3-го кэша, так как если закоментировать setHint, то будет 2 запроса.
-   * Примечание 1 часть не влияет на 2, можно закоментировать
-   */
-  @Test
-  public void testCacheThirdLevelHQLQuery() {
-    statictics.setStatisticsEnabled(true);
-    List<Mentor> mentor1 = em.createQuery("select e from mentors e", Mentor.class)
-        .setHint("org.hibernate.cacheable", true)
-        .getResultList();
-    System.out.println(mentor1.get(0).getName());
-
-    List<Mentor> mentor2 = em.createQuery("select e from mentors e", Mentor.class)
-        .setHint("org.hibernate.cacheable", true)
-        .getResultList();
-    System.out.println(mentor2.get(0).getName());
-
-    assertTrue(cache.contains(Mentor.class,1L));
-    assertEquals(mentor1, mentor2);
-
-    assertEquals(2, statictics.getQueryCacheMissCount());
-    assertEquals(0, statictics.getQueryCacheHitCount());
-    assertEquals(2, statictics.getQueryCachePutCount());
-    assertEquals(2, statictics.getQueryExecutionCount());
-    assertEquals(mentor1.size(), statictics.getSecondLevelCachePutCount());
-
-    clearCache(true);
-
-    EntityManager em1 = emf.createEntityManager();
-    EntityManager em2 = emf.createEntityManager();
-
-    List<Mentor> mentor3 = em1.createQuery("select e from mentors e", Mentor.class)
-        .setHint("org.hibernate.cacheable", true)
-        .getResultList();
-    System.out.println(mentor3.get(0).getName());
-
-    List<Mentor> mentor4 = em2.createQuery("select e from mentors e", Mentor.class)
-        .setHint("org.hibernate.cacheable", true)
-        .getResultList();
-    System.out.println(mentor3.get(0).getName());
-
-    assertTrue(cache.contains(Mentor.class,1L));
-    assertNotEquals(mentor3, mentor4);
-    assertEquals(1, statictics.getQueryCacheMissCount());
-    assertEquals(1, statictics.getQueryCacheHitCount());
-    assertEquals(1, statictics.getQueryCachePutCount());
-    assertEquals(1, statictics.getQueryExecutionCount());
-    assertEquals(2, statictics.getSecondLevelCacheHitCount());
-    assertEquals(mentor3.size(), statictics.getSecondLevelCachePutCount());
-
-    clearCache(true);
-
-    // 2 запроса. Кэш не отрабатывает
-  }
-
-  /**
-   * Проверка кэша 3-го уровня
-   * Результат: 1 запроса.
-   * Вывод: В запросы вида getSingleResult() работает 3-ий кэш
-   */
-  @Test
-  public void testCacheThirdLevelHQLQuerySingleResult() {
-    statictics.setStatisticsEnabled(true);
-    Mentor mentor1 = em.createQuery("select e from mentors e where e.id=:id", Mentor.class)
-        .setHint("org.hibernate.cacheable", true)
-        .setParameter("id", 1L)
-        .getSingleResult();
-    System.out.println(mentor1.getName());
-
-    Mentor mentor2 = em.createQuery("select e from mentors e where e.id=:id", Mentor.class)
-        .setHint("org.hibernate.cacheable", true)
-        .setParameter("id", 1L)
-        .getSingleResult();
-    System.out.println(mentor2.getName());
-
-    assertEquals(1, statictics.getQueryExecutionCount());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-
-
-    clearCache(true);
-
-    // 1 запроса. Только в этом случае отрабатывает Кэш 3-го уровня
-  }
-
-  /**
-   * Проверка кэша 2-го уровня
-   * Результат: 1 запроса.
-   * Вывод: В запросах NamedQuery работает 3-ий кэш, но не работает 2-й.
-   * ВНИМАНИЕ: Не забывать добавлять @QueryHint(name = "org.hibernate.cacheable", value = "true")
-   */
-  @Test
-  public void testCacheThirdLevelNamedQuery() {
-    statictics.setStatisticsEnabled(true);
-    Mentor mentor1 = em.createNamedQuery("Mentor.getBySurname", Mentor.class)
-        .setParameter("surname", "Петя")
-        .getSingleResult();
-    System.out.println(mentor1.getName());
-
-    Mentor mentor2 = em.createNamedQuery("Mentor.getBySurname", Mentor.class)
-        .setParameter("surname", "Петя")
-        .getSingleResult();
-
-    System.out.println(mentor2.getName());
-    assertEquals(1, statictics.getQueryExecutionCount());
-
-
-    clearCache(true);
-    // При добавлении 3-го уровня Кэша, Кэш запросов, запрос будет 1, Обязательно указывать Hint в запросе
-  }
-
-  /**
-   * Проверка кэша 2-го уровня
-   * Результат: 1 запроса.
-   * Вывод: Работает 2-ой кэш
-   */
-  @Test
-  public void testCacheSecondLevelFindMethodQuery() {
-    statictics.setStatisticsEnabled(true);
-    Mentor mentor1 = em.find(Mentor.class, 1L);
-    System.out.println(mentor1.getName());
-
-    Mentor mentor2 = em.find(Mentor.class, 1L);
-    System.out.println(mentor2.getName());
-
-    assertEquals(1, statictics.getPrepareStatementCount());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-    // 1 запрос.
-
-    clearCache(true);
   }
 
   /**
@@ -346,107 +213,67 @@ public class Test2 {
     System.out.println(mentor2.getName());
 
     assertNotEquals(em1, em2);
+    assertTrue(cache.contains(Mentor.class,1L));
+    assertNotEquals(mentor1, mentor2);
     assertEquals(1, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
-    // 1 запрос.
+    assertEquals(1, statictics.getSecondLevelCacheHitCount());
+    System.out.println("Получение общего количество кэшируемых сущностей/коллекций, успешно извлеченных из кэша: " + statictics.getSecondLevelCacheHitCount());
 
+    em1.clear();
+    em2.clear();
     clearCache(true);
+
+    Mentor mentor3 = em1.createQuery("select e from mentors e where e.id=:id", Mentor.class)
+        .setParameter("id", 1L)
+        .getSingleResult();
+    System.out.println(mentor3.getName());
+
+    Mentor mentor4 = em2.find(Mentor.class, 1L);
+    System.out.println(mentor4.getName());
+
+    assertNotEquals(mentor3, mentor4);
+    assertTrue(cache.contains(Mentor.class,1L));
+    assertEquals(1, statictics.getPrepareStatementCount());
+    assertEquals(1, statictics.getSecondLevelCachePutCount());
+    assertEquals(1, statictics.getSecondLevelCacheHitCount());
+    System.out.println("Получение общего количество кэшируемых сущностей/коллекций, успешно извлеченных из кэша: " + statictics.getSecondLevelCacheHitCount());
   }
-
-  /**
-   * Проверка очистки кэша
-   * Результат: 2 запроса
-   * Вывод: Ручная очистка работает
-   * ВНИМАНИЕ: требуется запускать как em.clear(), так и cache.evict()
-   */
-  @Test
-  public void testCacheSecondLevelFindMethodQueryHandleEvict() {
-    statictics.setStatisticsEnabled(true);
-    Mentor mentor1 = em.find(Mentor.class, 1L);
-    System.out.println(mentor1.getName());
-
-    System.out.println("Количество 'объектов' во 2-м кэше:" + statictics.getSecondLevelCachePutCount());
-    session.evict(mentor1); // Удаление объекта из кеша сессии
-    clearCache(false);           // Без очистки кэша объект не удалится
-
-    System.out.println("Количество 'объектов' во 2-м кэше:" + statictics.getSecondLevelCachePutCount());
-
-    Mentor mentor2 = em.find(Mentor.class, 1L);
-    System.out.println(mentor2.getName());
-
-
-    assertEquals(2, statictics.getPrepareStatementCount());
-    assertEquals(2, statictics.getSecondLevelCachePutCount());
-    // 1 запрос
-
-    clearCache(true);
-  }
-
-  /**
-   * Проверка очистки кэша по таймауту
-   * Результат: Настроить общий кэш в ehcache.xml с таймаутом безрезультатно
-   * Вывод: Есть возможность настроить динамический кэш https://www.ehcache.org/documentation/3.0/107.html#supplement-jsr-107-configurations
-   */
-  @Test
-  public void testCacheSecondLevelFindMethodQueryHandleTimeout() {
-    CachingProvider provider = Caching.getCachingProvider();
-    CacheManager cacheManager = provider.getCacheManager();
-    MutableConfiguration<Long, String> configuration =
-        new MutableConfiguration<Long, String>()
-            .setTypes(Long.class, String.class)
-            .setStatisticsEnabled(true)
-            .setStoreByValue(false)
-            .setExpiryPolicyFactory(CreatedExpiryPolicy.factoryOf(new Duration(TimeUnit.SECONDS, 4)));
-    javax.cache.Cache<Long, String> cache2 = cacheManager.createCache("jCache", configuration);
-    cache2.put(1L, "one");
-    assertEquals("one", cache2.get(1L));
-    sleep(5000);
-    assertNull(cache2.get(1L));
-    cache2.put(2L, "two");
-    assertEquals("two", cache2.get(2L));
-
-    sleep(2000);
-
-    assertEquals("two", cache2.get(2L));
-    /*
-     * em.setCacheMode();
-     * CacheMode.NORMAL: будет читать элементы из кэша второго уровня и записывать их в него.
-     * CacheMode.GET: будет читать элементы из кеша второго уровня.
-     *   Не производить запись в кеш второго уровня, кроме как при обновлении данных
-     * */
-  }
-
 
   /**
    * Проверка кэша транзакционного изменения
    * Начало
    * Стратегия: READ_ONLY
+   * Вывод объект со стратегией ReadOnly не может быть изменен, но может быть удален
    */
   @Test
   public void testCacheSecondTwoTransactional_start() {
     statictics.setStatisticsEnabled(true);
-    EntityManager em = emf.createEntityManager();
+    try {
+      em.getTransaction().begin();
+      MentorReadOnly mentor1 = em.find(MentorReadOnly.class, 1L);
+      System.out.println(mentor1.getName());
+
+      assertEquals("Ментор старый", mentor1.getName());
+      mentor1.setName("Ментор новый");
+      em.flush();
+      assertEquals("Ментор новый", mentor1.getName());
+
+      em.getTransaction().commit();
+    } catch (UnsupportedOperationException e) {
+      e.printStackTrace();
+      System.out.println("Объект со стратегией ReadOnly не может быть изменен");
+      em.getTransaction().rollback();
+    }
     em.getTransaction().begin();
-    Mentor mentor1 = em.find(Mentor.class, 1L);
+    MentorReadOnly mentor1 = em.find(MentorReadOnly.class, 1L);
     System.out.println(mentor1.getName());
 
-    assertEquals("Ментор1", mentor1.getName());
-
-    mentor1.setName("Ментор2");
-
-    em.merge(mentor1);
+    assertEquals("Ментор старый", mentor1.getName());
+    em.remove(mentor1);
     em.flush();
-    assertEquals("Ментор2", mentor1.getName());
-
-    do {
-      sleep(Integer.MAX_VALUE);
-    } while (false);
-
     em.getTransaction().commit();
-
-    // 1 запрос.
-//
-//    clearCache(true);
+    clearCache(true);
   }
 
   /**
@@ -904,6 +731,7 @@ public class Test2 {
   private static void clearCache(boolean isClearStatistic) {
     if (cache != null) {
       session.clear();
+      emf.getCache().evictAll();
       cache.evictAll();
       sf.getCache().evictQueryRegions();
     }
