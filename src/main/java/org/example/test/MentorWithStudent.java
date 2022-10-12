@@ -14,7 +14,7 @@ import java.util.Set;
 @Entity(name = "mentors_with_students")
 @Cacheable
 @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
-public class MentorWithStudent {
+public class MentorWithStudent implements MentorNameable {
 
   @Id
   public Long id;

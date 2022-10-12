@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @Entity(name = "mentors_transaction")
 @Cacheable
 @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.TRANSACTIONAL)
-public class MentorTransactional {
+public class MentorTransactional implements MentorNameable {
 
   @Id
   public Long id;

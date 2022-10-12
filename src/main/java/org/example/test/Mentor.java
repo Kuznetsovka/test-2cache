@@ -23,7 +23,7 @@ import java.util.Set;
 @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 @NamedQuery(name = "Mentor.getBySurname", query = "select e from mentors e where e.surname=:surname",
     hints = { @QueryHint(name = "org.hibernate.cacheable", value = "true") })
-public class Mentor {
+public class Mentor implements MentorNameable {
   @Id
   public Long id;
 

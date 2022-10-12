@@ -13,7 +13,7 @@ import java.util.Set;
 @Entity(name = "mentors_read_only")
 @Cacheable
 @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_ONLY)
-public class MentorReadOnly {
+public class MentorReadOnly implements MentorNameable {
 
   @Id
   public Long id;

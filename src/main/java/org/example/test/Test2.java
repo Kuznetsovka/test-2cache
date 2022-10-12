@@ -6,12 +6,6 @@ import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import javax.cache.CacheManager;
-import javax.cache.Caching;
-import javax.cache.configuration.MutableConfiguration;
-import javax.cache.expiry.CreatedExpiryPolicy;
-import javax.cache.expiry.Duration;
-import javax.cache.spi.CachingProvider;
 import javax.persistence.Cache;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
@@ -20,10 +14,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 /**
@@ -32,12 +25,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class Test2 {
 
   // https://russianblogs.com/article/74471007299/
-  public static final EntityManagerFactory emf = Persistence.createEntityManagerFactory("default");
+  public static volatile  EntityManagerFactory emf = Persistence.createEntityManagerFactory("default");
   public static final EntityManager em = emf.createEntityManager();
-  private static final Session session = em.unwrap(org.hibernate.Session.class);
-  private static final SessionFactory sf = session.getSessionFactory();
-  private static final Statistics statictics = sf.getStatistics();
-  private static final Cache cache = emf.getCache();
+  private static volatile Session session = em.unwrap(org.hibernate.Session.class);
+  private static volatile SessionFactory sf = session.getSessionFactory();
+  public static volatile Statistics statictics = sf.getStatistics();
+  public static volatile Cache cache = emf.getCache();
 
 
   @BeforeAll
@@ -81,7 +74,7 @@ public class Test2 {
     em.persist(mentor6);
     em.flush();
     em.getTransaction().commit();
-    clearCache(true);
+    clearCache(true, false);
   }
 
   /**
@@ -109,7 +102,7 @@ public class Test2 {
     assertEquals(2, statictics.getQueryExecutionCount());
     assertEquals(0, statictics.getSecondLevelCachePutCount());
 
-    clearCache(true);
+    clearCache(true, false);
 
     EntityManager em1 = emf.createEntityManager();
     EntityManager em2 = emf.createEntityManager();
@@ -134,7 +127,7 @@ public class Test2 {
     assertEquals(2, statictics.getQueryExecutionCount());
     assertEquals(0, statictics.getSecondLevelCachePutCount());
 
-    clearCache(true);
+    clearCache(true, true);
 
   }
 
@@ -165,7 +158,7 @@ public class Test2 {
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     assertEquals(0, statictics.getSecondLevelCacheHitCount());
 
-    clearCache(true);
+    clearCache(true, false);
 
     EntityManager em1 = emf.createEntityManager();
     EntityManager em2 = emf.createEntityManager();
@@ -192,7 +185,7 @@ public class Test2 {
     assertEquals(2, statictics.getQueryExecutionCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     assertEquals(0, statictics.getSecondLevelCacheHitCount()); // Объекты взяты из базы, хоть и лежит в кэше 2-го уровня.
-    clearCache(true);
+    clearCache(true, true);
 
   }
 
@@ -213,7 +206,7 @@ public class Test2 {
     System.out.println(mentor2.getName());
 
     assertNotEquals(em1, em2);
-    assertTrue(cache.contains(Mentor.class,1L));
+    assertTrue(cache.contains(Mentor.class, 1L));
     assertNotEquals(mentor1, mentor2);
     assertEquals(1, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
@@ -222,7 +215,7 @@ public class Test2 {
 
     em1.clear();
     em2.clear();
-    clearCache(true);
+    clearCache(true, false);
 
     Mentor mentor3 = em1.createQuery("select e from mentors e where e.id=:id", Mentor.class)
         .setParameter("id", 1L)
@@ -233,11 +226,12 @@ public class Test2 {
     System.out.println(mentor4.getName());
 
     assertNotEquals(mentor3, mentor4);
-    assertTrue(cache.contains(Mentor.class,1L));
+    assertTrue(cache.contains(Mentor.class, 1L));
     assertEquals(1, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     assertEquals(1, statictics.getSecondLevelCacheHitCount());
     System.out.println("Получение общего количество кэшируемых сущностей/коллекций, успешно извлеченных из кэша: " + statictics.getSecondLevelCacheHitCount());
+    clearCache(true, true);
   }
 
   /**
@@ -273,30 +267,37 @@ public class Test2 {
     em.remove(mentor1);
     em.flush();
     em.getTransaction().commit();
-    clearCache(true);
+    clearCache(true, true);
   }
 
   /**
    * Проверка кэша транзакционного изменения
-   * Конец
    * Результат: возврат объекта до изменения
-   * Вывод: В кэш не записывается значение до конца транзакции
+   * Вывод:
    */
   @Test
-  public void testCacheSecondTwoTransactional_finish() {
-    EntityManager em = emf.createEntityManager();
-    em.getTransaction().begin();
+  public void testCacheSecondTwoTransactional() {
     statictics.setStatisticsEnabled(true);
-    Mentor mentor1 = em.find(Mentor.class, 1L);
-    System.out.println(mentor1.getName());
-    assertEquals("Ментор1", mentor1.getName());
-    em.getTransaction().commit();
-    assertEquals(1, statictics.getPrepareStatementCount());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-    // 1 запрос.
+    CyclicBarrier barrier = new CyclicBarrier(2);
+    CountDownLatch cdl = new CountDownLatch(2);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    MyThread t1 = new MyThread(Mentor.class, barrier, cdl,"1-Thread", MyThread.MethodName.CHANGE, 0);
+    MyThread t2 = new MyThread(Mentor.class, barrier, cdl,"2-Thread", MyThread.MethodName.NONE, 1000);
+    System.out.println("Запуск потоков");
+    executor.execute(t1);
+    executor.execute(t2);
 
-    clearCache(true);
+    try {
+      cdl.await();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+
+    executor.shutdown();
+    System.out.println("Завершение потоков");
+    clearCache(true, true);
   }
+
 
   /**
    * Проверка кэша 2-го уровня в транзакции
@@ -320,7 +321,7 @@ public class Test2 {
     em1.getTransaction().commit();
     // 1 запрос.
 
-    clearCache(true);
+    clearCache(true, true);
   }
 
   /**
@@ -355,7 +356,7 @@ public class Test2 {
     em.getTransaction().commit();
     // 1 запрос.
 
-    clearCache(true);
+    clearCache(true, true);
     // Для сброса в изначальное состояние
     em.getTransaction().begin();
     mentor1.setName("Ментор1");
@@ -390,7 +391,7 @@ public class Test2 {
     em.getTransaction().commit();
     // 1 запрос.
 
-    clearCache(true);
+    clearCache(true, true);
   }
 
   /**
@@ -430,7 +431,7 @@ public class Test2 {
     mentor1.setName("Ментор старый");
     em.flush();
     em.getTransaction().commit();
-    clearCache(true);
+    clearCache(true, true);
   }
 
   /**
@@ -454,7 +455,7 @@ public class Test2 {
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     em.getTransaction().commit();
     System.out.println("**********  Конец 2 транзакции ********** ");
-    clearCache(true);
+    clearCache(true, true);
     // 1 запрос.
   }
 
@@ -494,7 +495,7 @@ public class Test2 {
     mentor1.setName("Ментор старый");
     em.flush();
     em.getTransaction().commit();
-    clearCache(true);
+    clearCache(true, true);
   }
 
   /**
@@ -527,7 +528,7 @@ public class Test2 {
 
     em.getTransaction().commit();
     System.out.println("**********  Конец 2 транзакции ********** ");
-    clearCache(true);
+    clearCache(true, true);
     // 1 запрос.
   }
 
@@ -567,7 +568,7 @@ public class Test2 {
     mentor1.setName("Ментор старый");
     em.merge(mentor1);
     em.getTransaction().commit();
-    clearCache(true);
+    clearCache(true, true);
   }
 
   /**
@@ -595,7 +596,7 @@ public class Test2 {
 
     em.getTransaction().commit();
     System.out.println("**********  Конец 2 транзакции ********** ");
-    clearCache(true);
+    clearCache(true, true);
     // 1 запрос.
   }
 
@@ -623,7 +624,7 @@ public class Test2 {
     assertEquals(4, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     em.getTransaction().commit();
-    clearCache(true);
+    clearCache(true, true);
   }
 
 
@@ -656,7 +657,7 @@ public class Test2 {
     assertEquals(3, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     em.getTransaction().commit();
-    clearCache(true);
+    clearCache(true, true);
   }
 
   /**
@@ -685,7 +686,7 @@ public class Test2 {
     assertEquals(4, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
 
-    clearCache(true);
+    clearCache(true, true);
   }
 
   /**
@@ -707,7 +708,7 @@ public class Test2 {
     assertEquals(2, statictics.getSecondLevelCachePutCount());
     assertEquals(2, statictics.getPrepareStatementCount());
 
-    clearCache(true);
+    clearCache(true, false);
 
     MentorWithStudent mentor2 = em.find(MentorWithStudent.class, 1L);
     Integer count2 = mentor2.getStudents().size(); // первое обращение к коллекции студентов
@@ -717,18 +718,19 @@ public class Test2 {
     }
     //assertEquals(1, statictics.getSecondLevelCachePutCount());
 
-    clearCache(true);
+    clearCache(true, true);
   }
 
-  private void sleep(int milliseconds) {
+  public static void sleep(int milliseconds) {
     try {
-      Thread.sleep(milliseconds);
+      if(milliseconds > 0)
+        Thread.sleep(milliseconds);
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
   }
 
-  private static void clearCache(boolean isClearStatistic) {
+  private static void clearCache(boolean isClearStatistic, boolean isCloseSession) {
     if (cache != null) {
       session.clear();
       emf.getCache().evictAll();
@@ -737,6 +739,9 @@ public class Test2 {
     }
     if (isClearStatistic)
       statictics.clear();
+    if (isCloseSession) {
+      session.close();
+    }
     // em.evict(Mentor); Удаление из кэша 1-го уровня.
     // emFactory.evict(Mentor.class, mentorId); Удаление из кэша определенного объекта
     // emFactory.evict(Mentor.class); Удаление из кэша все объекты указанного класса

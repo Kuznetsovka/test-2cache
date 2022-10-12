@@ -16,7 +16,7 @@ import java.util.Set;
 @Entity(name = "mentors_nonstrict")
 @Cacheable
 @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
-public class MentorNonstrict {
+public class MentorNonstrict implements MentorNameable {
 
   @Id
   public Long id;
