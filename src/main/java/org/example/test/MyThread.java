@@ -66,9 +66,7 @@ class MyThread implements Runnable {
     System.out.println(name + " Количество сущностей взятых из кэша: " + statictics.getSecondLevelCacheHitCount());
     try {
       barrier.await();
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    } catch (BrokenBarrierException e) {
+    } catch (InterruptedException | BrokenBarrierException e) {
       throw new RuntimeException(e);
     }
     em.getTransaction().commit();
@@ -78,9 +76,7 @@ class MyThread implements Runnable {
     System.out.println(name + " Конец транзакции");
     try {
       barrier.await();
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    } catch (BrokenBarrierException e) {
+    } catch (InterruptedException | BrokenBarrierException e) {
       throw new RuntimeException(e);
     }
     cdl.countDown();
@@ -142,6 +138,7 @@ class MyThread implements Runnable {
     switch (methodName){
       case CHANGE:
         mentor.setName("Ментор новый" + name);
+        em.merge(mentor);
         try {
           em.flush();
         } catch (UnsupportedOperationException e){

@@ -19,12 +19,15 @@
             <property name="javax.persistence.jdbc.user" value="postgres"/>
             <property name="javax.persistence.jdbc.password" value="postgres"/>
             <property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQL9Dialect"/>
-<!--            <property name="current_session_context_class" value = "thread"/>-->
+            <property name="current_session_context_class" value = "thread"/>
             <property name="hibernate.hbm2ddl.auto" value="create-drop"/>
             <property name="hibernate.show_sql" value = "true"/>
 <!--            <property name="hibernate.format_sql" value = "true"/>-->
             <property name="hibernate.connection.provider_class" value="org.hibernate.connection.HikariCPConnectionProvider"/>
-            <property name="hibernate.transaction.jta.platform" value="org.hibernate.engine.transaction.jta.platform.spi.JtaPlatformResolver"/>
+
+            <property name="hibernate.transaction.jta.platform" value="org.hibernate.engine.transaction.jta.platform.internal.WeblogicJtaPlatform"/>
+<!--            <property name="hibernate.transaction.auto_close_session" value="true"/>-->
+            <property name="javax.persistence.lock.timeout" value="10"/>
 
             <property name="hibernate.cache.use_second_level_cache" value="true"/>
             <property name="hibernate.cache.region.factory_class" value="org.hibernate.cache.jcache.JCacheRegionFactory"/>

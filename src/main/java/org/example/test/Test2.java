@@ -314,6 +314,7 @@ public class Test2 {
    * Проверка кэша в кросстранзакционности
    * Стратегия: NONSTRICT
    * Результат: Блокировка сессии при двойной замене. Блокировка на уровке БД.
+   * Результат: 2 запроса, объект берется из базы
    * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
@@ -352,7 +353,7 @@ public class Test2 {
   /**
    * Проверка кэша в кросстранзакционности
    * стратегия: WRITE_READ
-   * Результат: 1 запрос, объект берется из кэша 2го уровня
+   * Результат: 1 запрос, объект берется из кэша 2го уровня 2-ой поток берет из кэша, если добавлено свойство  <property name="current_session_context_class" value = "thread"/>
    * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
@@ -362,13 +363,13 @@ public class Test2 {
     CountDownLatch cdl = new CountDownLatch(2);
     ExecutorService executor = Executors.newFixedThreadPool(2);
     MyThread t1 = new MyThread.Builder()
-        .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
+        .mentor(Mentor.class).barrier(barrier).cdl(cdl)
         .name("1-Thread")
         .methodName(MyThread.MethodName.CHANGE)
         .time(0)
         .build();
     MyThread t2 = new MyThread.Builder()
-        .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
+        .mentor(Mentor.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
         .methodName(MyThread.MethodName.CHANGE)
         .time(1000)
@@ -391,7 +392,7 @@ public class Test2 {
   /**
    * Проверка кэша в кросстранзакционности
    * Стратегия: TRANSACTIONAL
-   * Результат: 1 запрос, объект берется из кэша 2го уровня
+   * Результат: 1 запрос, объект берется из кэша 2го уровня 2-ой поток берет из кэша, если добавлено свойство  <property name="current_session_context_class" value = "thread"/>
    * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
@@ -451,68 +452,6 @@ public class Test2 {
     assertEquals(4, statictics.getPrepareStatementCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     em.getTransaction().commit();
-    clearCache(true, true);
-  }
-
-
-  /**
-   * Проверка кэша 2-го уровня в транзакции при удалении записи
-   * Стратегия: NONSTRICT_READ_WRITE
-   * Результат: 2 запроса. До окончания транзакции сущность уже меняет состояние на null.
-   * Вывод: Имеем 2 запроса, но данные возвращаются из cache т.к. в момент запроса в базе объект еще не удален.
-   */
-  @Test
-  public void testCacheSecondLevelFindMethodQuery_Delete_2() {
-    statictics.setStatisticsEnabled(true);
-    em.getTransaction().begin();
-    MentorNonstrict mentor1 = em.find(MentorNonstrict.class, 1L);
-    System.out.println(mentor1.getName());
-    assertEquals(0, statictics.getUpdateTimestampsCachePutCount());
-    assertEquals(0, statictics.getEntityDeleteCount());
-
-    assertTrue(cache.contains(MentorNonstrict.class, 1L));
-    em.remove(mentor1);
-    assertTrue(cache.contains(MentorNonstrict.class, 1L));
-    em.flush();
-    assertFalse(cache.contains(MentorNonstrict.class, 1L));
-    assertEquals(1, statictics.getUpdateTimestampsCachePutCount());
-    assertEquals(1, statictics.getEntityDeleteCount());
-    MentorNonstrict mentor2 = em.find(MentorNonstrict.class, 1L);
-
-    System.out.println("Сущность = " + mentor2);
-    assertNull(mentor2);
-    assertEquals(3, statictics.getPrepareStatementCount());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-    em.getTransaction().commit();
-    clearCache(true, true);
-  }
-
-  /**
-   * Проверка кэша 2-го уровня в транзакции при удалении записи
-   * Стратегия: READ_ONLY
-   * Результат: 2 запроса. До окончания транзакции сущность уже меняет состояние на null.
-   * Вывод: Имеем 2 запроса, но данные возвращаются из cache т.к. в момент запроса в базе объект еще не удален.
-   */
-  @Test
-  public void testCacheSecondLevelFindMethodQuery_Delete_3() {
-    statictics.setStatisticsEnabled(true);
-    em.getTransaction().begin();
-    MentorNonstrict mentor1 = em.find(MentorNonstrict.class, 1L);
-    System.out.println(mentor1.getName());
-    assertEquals(0, statictics.getUpdateTimestampsCachePutCount());
-    assertEquals(0, statictics.getEntityDeleteCount());
-    em.remove(mentor1);
-    em.flush();
-    assertEquals(2, statictics.getUpdateTimestampsCachePutCount());
-    assertEquals(1, statictics.getEntityDeleteCount());
-    MentorNonstrict mentor2 = em.find(MentorNonstrict.class, 1L);
-
-    System.out.println("Сущность = " + mentor2);
-    assertTrue(cache.contains(MentorNonstrict.class, mentor2));
-    assertNull(mentor2);
-    assertEquals(4, statictics.getPrepareStatementCount());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-
     clearCache(true, true);
   }
 

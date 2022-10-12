@@ -1,8 +1,9 @@
 package org.example.test;
 
-import org.hibernate.annotations.CacheConcurrencyStrategy;
+import org.hibernate.annotations.*;
 
 import javax.persistence.*;
+import javax.persistence.Entity;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -18,6 +19,8 @@ import java.util.List;
 @Entity(name = "mentors_transaction")
 @Cacheable
 @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.TRANSACTIONAL)
+@OptimisticLocking(type = OptimisticLockType.ALL)
+@DynamicUpdate
 public class MentorTransactional implements MentorNameable {
 
   @Id
@@ -30,6 +33,7 @@ public class MentorTransactional implements MentorNameable {
   public LocalDateTime birthday;
 
   @OneToMany(fetch = FetchType.LAZY)
+  @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.TRANSACTIONAL)
   public List<Student> students;
 
   public MentorTransactional() {

@@ -1,6 +1,9 @@
 package org.example.test;
 
 import org.hibernate.annotations.CacheConcurrencyStrategy;
+import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.OptimisticLockType;
+import org.hibernate.annotations.OptimisticLocking;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -17,6 +20,8 @@ import java.util.Set;
 @Entity(name = "mentors_nonstrict")
 @Cacheable
 @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
+//@OptimisticLocking(type = OptimisticLockType.ALL)
+//@DynamicUpdate
 public class MentorNonstrict implements MentorNameable {
 
   @Id
@@ -29,6 +34,7 @@ public class MentorNonstrict implements MentorNameable {
   public LocalDateTime birthday;
 
   @OneToMany(fetch = FetchType.LAZY)
+  @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
   public List<Student> students;
 
   public MentorNonstrict() {
