@@ -86,19 +86,6 @@ class MyThread implements Runnable {
     cdl.countDown();
   }
 
-  private void mentor() {
-    Mentor mentor1 = em.find(mentor, 1L);
-    System.out.println(name + " Старое имя объекта: " + mentor1.getName());
-
-    method(mentor1);
-
-    System.out.println(name + " Количество запросов: " + statictics.getPrepareStatementCount());
-    System.out.println(name + " Количество сущностей в кэше: " + statictics.getSecondLevelCachePutCount());
-
-    Mentor mentor2 = em.find(mentor, 1L);
-    System.out.println(name + " Новое имя объекта: " + (mentor2 != null ? mentor2.getName() : "NULL"));
-  }
-
   private void mentorReadOnly() {
     MentorReadOnly mentor1 = em.find(mentorReadOnly, 1L);
     System.out.println(name + " Старое имя объекта: " + mentor1.getName());
@@ -125,6 +112,19 @@ class MyThread implements Runnable {
     System.out.println(name + " Новое имя объекта: " + (mentor2 != null ? mentor2.getName() : "NULL"));
   }
 
+  private void mentor() {
+    Mentor mentor1 = em.find(mentor, 1L);
+    System.out.println(name + " Старое имя объекта: " + mentor1.getName());
+
+    method(mentor1);
+
+    System.out.println(name + " Количество запросов: " + statictics.getPrepareStatementCount());
+    System.out.println(name + " Количество сущностей в кэше: " + statictics.getSecondLevelCachePutCount());
+
+    Mentor mentor2 = em.find(mentor, 1L);
+    System.out.println(name + " Новое имя объекта: " + (mentor2 != null ? mentor2.getName() : "NULL"));
+  }
+
   private void mentorTransactional() {
     MentorTransactional mentor1 = em.find(mentorTransactional, 1L);
     System.out.println(name + " Старое имя объекта: " + mentor1.getName());
@@ -141,8 +141,12 @@ class MyThread implements Runnable {
   private void method(MentorNameable mentor) {
     switch (methodName){
       case CHANGE:
-        mentor.setName("Ментор новый");
-        em.flush();
+        mentor.setName("Ментор новый" + name);
+        try {
+          em.flush();
+        } catch (UnsupportedOperationException e){
+          e.printStackTrace();
+        }
         break;
       case DELETE:
         em.remove(mentor);

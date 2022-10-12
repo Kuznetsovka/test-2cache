@@ -4,6 +4,7 @@ import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -23,6 +24,9 @@ public class MentorReadOnly implements MentorNameable {
   public String surname;
 
   public LocalDateTime birthday;
+
+  @OneToMany(fetch = FetchType.LAZY)
+  public List<Student> students;
 
   public MentorReadOnly() {
   }
@@ -48,6 +52,14 @@ public class MentorReadOnly implements MentorNameable {
 
   public void setName(String name) {
     this.name = name;
+  }
+
+  public List<Student> getStudents() {
+    return students;
+  }
+
+  public void setStudents(List<Student> students) {
+    this.students = students;
   }
 
   public String getSurname() {

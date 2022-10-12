@@ -4,6 +4,7 @@ import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * @author Kuznetsovka created 14.07.2022
@@ -28,6 +29,9 @@ public class MentorTransactional implements MentorNameable {
 
   public LocalDateTime birthday;
 
+  @OneToMany(fetch = FetchType.LAZY)
+  public List<Student> students;
+
   public MentorTransactional() {
   }
 
@@ -40,6 +44,14 @@ public class MentorTransactional implements MentorNameable {
 
   public Long getId() {
     return id;
+  }
+
+  public List<Student> getStudents() {
+    return students;
+  }
+
+  public void setStudents(List<Student> students) {
+    this.students = students;
   }
 
   public void setId(Long id) {

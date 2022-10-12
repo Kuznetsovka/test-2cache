@@ -270,25 +270,27 @@ public class Test2 {
     clearCache(true, true);
   }
 
+
   /**
    * Проверка кэша в кросстранзакционности
+   * Стратегия: READ_ONLY
    * Результат: 1 запрос, объект берется из кэша 2го уровня
    * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
-  public void testCacheSecondTwoTransactional() {
+  public void testCacheSecondTwoTransactional_READ_ONLY() {
     statictics.setStatisticsEnabled(true);
     CyclicBarrier barrier = new CyclicBarrier(2);
     CountDownLatch cdl = new CountDownLatch(2);
     ExecutorService executor = Executors.newFixedThreadPool(2);
     MyThread t1 = new MyThread.Builder()
-        .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
+        .mentorReadOnly(MentorReadOnly.class).barrier(barrier).cdl(cdl)
         .name("1-Thread")
-        .methodName(MyThread.MethodName.NONE)
+        .methodName(MyThread.MethodName.CHANGE)
         .time(0)
         .build();
     MyThread t2 = new MyThread.Builder()
-        .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
+        .mentorReadOnly(MentorReadOnly.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
         .methodName(MyThread.MethodName.NONE)
         .time(1000)
@@ -308,306 +310,121 @@ public class Test2 {
     clearCache(true, true);
   }
 
-
   /**
-   * Проверка кэша 2-го уровня в транзакции
-   * Результат: 1 запроса.
-   * Вывод: Работает 2-ой кэш в рамках одной транзакции
-   */
-  @Test
-  public void testCacheSecondLevelFindMethodQuery_Transactional() {
-    statictics.setStatisticsEnabled(true);
-    EntityManager em1 = em.getEntityManagerFactory().createEntityManager();
-    EntityManager em2 = em.getEntityManagerFactory().createEntityManager();
-    em1.getTransaction().begin();
-    Mentor mentor1 = em1.find(Mentor.class, 1L);
-    System.out.println(mentor1.getName());
-
-    Mentor mentor2 = em2.find(Mentor.class, 1L);
-    System.out.println(mentor2.getName());
-
-    assertEquals(1, statictics.getPrepareStatementCount());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-    em1.getTransaction().commit();
-    // 1 запрос.
-
-    clearCache(true, true);
-  }
-
-  /**
-   * Проверка кэша 2-го уровня в транзакции с изменением
-   * Стратегия: READ_AND_WRITE
-   * Результат: 1 запрос, второй запрос возвращает измененную сущность. Коммит исполняется
-   * Вывод: В рамках одной транзакции кэш отрабатывает сразу, до коммита.
-   * Примечание: Встроенные поставщики кэша не поддерживают блокировку.
-   */
-  @Test
-  public void testCacheSecondLevelFindMethodQuery_WithChange_READ_AND_WRITE_Transactional() {
-    EntityManager em = emf.createEntityManager();
-    statictics.setStatisticsEnabled(true);
-    em.getTransaction().begin();
-
-    System.out.println("**********  Начало 1 транзакции ********** ");
-    Mentor mentor1 = em.find(Mentor.class, 1L);
-    System.out.println("Имя ментора в базе: " + mentor1.getName());
-
-    mentor1.setName("Ментор новый");
-    em.merge(mentor1);
-    em.flush();
-    System.out.println("Новое имя ментора: " + mentor1.getName());
-
-    Mentor mentor2 = em.find(Mentor.class, 1L);
-
-    System.out.println("Имя ментора полученное из КЭШа в рамках транзакции: " + mentor2.getName());
-
-    assertEquals("Ментор новый", mentor2.getName());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-
-    em.getTransaction().commit();
-    // 1 запрос.
-
-    clearCache(true, true);
-    // Для сброса в изначальное состояние
-    em.getTransaction().begin();
-    mentor1.setName("Ментор1");
-    em.merge(mentor1);
-    em.flush();
-    em.getTransaction().commit();
-  }
-
-  /**
-   * Проверка кэша 2-го уровня в транзакции с изменением
-   * Стратегия: READ_ONLY
-   * Результат: 1 запрос, второй запрос возвращает измененную сущность.
-   * Не позволяет изменять читаемый объект в одной транзакции
-   * Вывод: В рамках одной транзакции кэш отрабатывает сразу, до коммита
-   */
-  @Test
-  public void testCacheSecondLevelFindMethodQuery_WithChange_READ_ONLY_Transactional() {
-    statictics.setStatisticsEnabled(true);
-    EntityManager em = emf.createEntityManager();
-    em.getTransaction().begin();
-    MentorReadOnly mentor1 = em.find(MentorReadOnly.class, 1L);
-    System.out.println(mentor1.getName());
-
-    mentor1.setName("Ментор2");
-    em.persist(mentor1);
-    em.flush();
-    MentorReadOnly mentor2 = em.find(MentorReadOnly.class, 1L);
-    System.out.println(mentor2.getName());
-
-    assertEquals("Ментор2", mentor2.getName());
-    assertEquals(2, statictics.getSecondLevelCachePutCount());
-    em.getTransaction().commit();
-    // 1 запрос.
-
-    clearCache(true, true);
-  }
-
-  /**
-   * Не забыть выключить BeforeAll
-   * Проверка кэша 2-го уровня в транзакции с изменением
-   * Начало
-   * Стратегия: TRANSACTIONAL
-   * Результат: 1 запрос, второй запрос возвращает измененную сущность. Коммит исполняется
-   * Вывод: В рамках одной транзакции кэш отрабатывает сразу, до коммита.
-   * Примечание: Встроенные поставщики кэша не поддерживают блокировку.
-   */
-  @Test
-  public void testCacheSecondLevelFindMethodQuery_EM_WithChange_TRANSACTIONAL_Transactional_start() {
-    statictics.setStatisticsEnabled(true);
-    EntityManager em = emf.createEntityManager();
-    em.getTransaction().begin();
-    System.out.println("**********  Начало 1 транзакции ********** ");
-    MentorTransactional mentor1 = em.find(MentorTransactional.class, 1L);
-    System.out.println("Имя ментора в базе: " + mentor1.getName());
-    mentor1.setName("Ментор новый");
-    em.merge(mentor1);
-    em.flush();
-    System.out.println("Новое имя ментора: " + mentor1.getName());
-
-    MentorTransactional mentor2 = em.find(MentorTransactional.class, 1L);
-
-    System.out.println("Имя ментора полученное из КЭШа в рамках транзакции: " + mentor2.getName());
-
-    assertEquals("Ментор новый", mentor2.getName());
-    assertEquals(2, statictics.getSecondLevelCachePutCount());
-
-    em.getTransaction().commit();
-    System.out.println("**********  Конец 1 транзакции ********** ");
-
-    // Для сброса в изначальное состояние
-    em.getTransaction().begin();
-    mentor1.setName("Ментор старый");
-    em.flush();
-    em.getTransaction().commit();
-    clearCache(true, true);
-  }
-
-  /**
-   * Проверка кэша 2-го уровня в транзакции с изменением
-   * Конец
-   * Стратегия: TRANSACTIONAL
-   * Результат: 1 запрос, второй запрос возвращает измененную сущность. Коммит исполняется
-   * Вывод: В рамках одной транзакции кэш отрабатывает сразу, до коммита.
-   * Примечание: Встроенные поставщики кэша не поддерживают блокировку. Поэтому разницы с WRITE_AND_READ нет.
-   * В версии Hibernate 5.0 трназакционный уровень стал доступен только в JTA-окружении.
-   */
-  @Test
-  public void testCacheSecondLevelFindMethodQuery_EM_WithChange_TRANSACTIONAL_Transactional_finish() {
-    statictics.setStatisticsEnabled(true);
-    EntityManager em = emf.createEntityManager();
-    em.getTransaction().begin();
-    System.out.println("**********  Начало 2 транзакции ********** ");
-    MentorTransactional mentor1 = em.find(MentorTransactional.class, 1L);
-    System.out.println("Имя ментора в базе:" + mentor1.getName());
-    assertEquals("Ментор новый", mentor1.getName());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-    em.getTransaction().commit();
-    System.out.println("**********  Конец 2 транзакции ********** ");
-    clearCache(true, true);
-    // 1 запрос.
-  }
-
-  /**
-   * Проверка кэша 2-го уровня в транзакции с изменением
-   * Начало
+   * Проверка кэша в кросстранзакционности
    * Стратегия: NONSTRICT
-   * Результат: 1 запрос, второй запрос возвращает измененную сущность. Коммит исполняется
-   * Вывод: В рамках одной транзакции кэш отрабатывает сразу, до коммита.
+   * Результат: Блокировка сессии при двойной замене. Блокировка на уровке БД.
+   * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
-  public void testCacheSecondLevelFindMethodQuery_WithChange_NONSTRICT_Transactional() {
+  public void testCacheSecondTwoTransactional_NONSTRICT() {
     statictics.setStatisticsEnabled(true);
-    EntityManager em = emf.createEntityManager();
-    em.getTransaction().begin();
-    System.out.println("**********  Начало 1 транзакции ********** ");
-    MentorNonstrict mentor1 = em.find(MentorNonstrict.class, 1L);
-    System.out.println("Имя ментора в базе: " + mentor1.getName());
+    CyclicBarrier barrier = new CyclicBarrier(2);
+    CountDownLatch cdl = new CountDownLatch(2);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    MyThread t1 = new MyThread.Builder()
+        .mentorNonstrict(MentorNonstrict.class).barrier(barrier).cdl(cdl)
+        .name("1-Thread")
+        .methodName(MyThread.MethodName.CHANGE)
+        .time(0)
+        .build();
+    MyThread t2 = new MyThread.Builder()
+        .mentorNonstrict(MentorNonstrict.class).barrier(barrier).cdl(cdl)
+        .name("2-Thread")
+        .methodName(MyThread.MethodName.CHANGE)
+        .time(1000)
+        .build();
+    System.out.println("Запуск потоков");
+    executor.execute(t1);
+    executor.execute(t2);
 
-    mentor1.setName("Ментор новый");
-    em.merge(mentor1);
-    em.flush();
-    System.out.println("Новое имя ментора: " + mentor1.getName());
+    try {
+      cdl.await();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
 
-    MentorNonstrict mentor2 = em.find(MentorNonstrict.class, 1L);
-
-    System.out.println("Имя ментора полученное из базы: " + mentor2.getName());
-
-    assertEquals("Ментор новый", mentor2.getName());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-
-    em.getTransaction().commit();
-    System.out.println("**********  Конец 1 транзакции ********** ");
-
-    // Для сброса в изначальное состояние
-    em.getTransaction().begin();
-    mentor1.setName("Ментор старый");
-    em.flush();
-    em.getTransaction().commit();
+    executor.shutdown();
+    System.out.println("Завершение потоков");
     clearCache(true, true);
   }
 
   /**
-   * Проверка кэша 2-го уровня в транзакции с изменением
-   * Конец
-   * Стратегия: NONSTRICT
-   * Результат: 1 запрос: вернет Ментор новый2, 2 из кэша Ментор новый2
-   * Вывод: В рамках одной транзакции кэш отрабатывает сразу, до коммита.
+   * Проверка кэша в кросстранзакционности
+   * стратегия: WRITE_READ
+   * Результат: 1 запрос, объект берется из кэша 2го уровня
+   * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
-  public void testCacheSecondLevelFindMethodQuery_WithChange_NONSTRICT_Transactional_finish() {
+  public void testCacheSecondTwoTransactional_WRITE_READ() {
     statictics.setStatisticsEnabled(true);
-    EntityManager em = emf.createEntityManager();
-    em.getTransaction().begin();
-    System.out.println("**********  Начало 2 транзакции ********** ");
-    MentorNonstrict mentor1 = em.find(MentorNonstrict.class, 1L);
-    System.out.println("Имя ментора в базе:" + mentor1.getName());
+    CyclicBarrier barrier = new CyclicBarrier(2);
+    CountDownLatch cdl = new CountDownLatch(2);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    MyThread t1 = new MyThread.Builder()
+        .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
+        .name("1-Thread")
+        .methodName(MyThread.MethodName.CHANGE)
+        .time(0)
+        .build();
+    MyThread t2 = new MyThread.Builder()
+        .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
+        .name("2-Thread")
+        .methodName(MyThread.MethodName.CHANGE)
+        .time(1000)
+        .build();
+    System.out.println("Запуск потоков");
+    executor.execute(t1);
+    executor.execute(t2);
 
-    mentor1.setName("Ментор новый2");
-    em.merge(mentor1);
-    em.flush();
+    try {
+      cdl.await();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
 
-    System.out.println("Новое имя ментора: " + mentor1.getName());
-    assertEquals("Ментор новый2", mentor1.getName());
-
-    MentorNonstrict mentor2 = em.find(MentorNonstrict.class, 1L);
-
-    assertEquals("Ментор новый2", mentor2.getName());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-
-    em.getTransaction().commit();
-    System.out.println("**********  Конец 2 транзакции ********** ");
-    clearCache(true, true);
-    // 1 запрос.
-  }
-
-  /**
-   * Проверка кэша 2-го уровня в транзакции с изменением
-   * Начало
-   * Стратегия: WRITE_READ
-   * Результат: 1 запрос, второй запрос возвращает измененную сущность. Коммит исполняется
-   * Вывод: В рамках одной транзакции кэш отрабатывает сразу, до коммита.
-   */
-  @Test
-  public void testCacheSecondLevelFindMethodQuery_WithChange_WRITE_READ_Transactional_start() {
-    statictics.setStatisticsEnabled(true);
-    EntityManager em = emf.createEntityManager();
-    em.getTransaction().begin();
-    System.out.println("**********  Начало 1 транзакции ********** ");
-    Mentor mentor1 = em.find(Mentor.class, 1L);
-    System.out.println("Имя ментора в базе: " + mentor1.getName());
-
-    mentor1.setName("Ментор новый");
-    em.merge(mentor1);
-    em.flush();
-    System.out.println("Новое имя ментора: " + mentor1.getName());
-
-    Mentor mentor2 = em.find(Mentor.class, 1L);
-
-    System.out.println("Имя ментора полученное из базы: " + mentor2.getName());
-
-    assertEquals("Ментор новый", mentor2.getName());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-
-    em.getTransaction().commit();
-    System.out.println("**********  Конец 1 транзакции ********** ");
-
-    // Для сброса в изначальное состояние
-    em.getTransaction().begin();
-    mentor1.setName("Ментор старый");
-    em.merge(mentor1);
-    em.getTransaction().commit();
+    executor.shutdown();
+    System.out.println("Завершение потоков");
     clearCache(true, true);
   }
 
   /**
-   * Проверка кэша 2-го уровня в транзакции с изменением
-   * Конец
-   * Стратегия: WRITE_READ
-   * Результат: 1 запрос: вернет Ментор новый, 2 из кэша Ментор новый2
-   * Вывод: В рамках одной транзакции кэш отрабатывает сразу, до коммита.
+   * Проверка кэша в кросстранзакционности
+   * Стратегия: TRANSACTIONAL
+   * Результат: 1 запрос, объект берется из кэша 2го уровня
+   * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
-  public void testCacheSecondLevelFindMethodQuery_WithChange_WRITE_READ_Transactional_finish() {
+  public void testCacheSecondTwoTransactional_TRANSACTIONAL() {
     statictics.setStatisticsEnabled(true);
-    EntityManager em = emf.createEntityManager();
-    em.getTransaction().begin();
-    System.out.println("**********  Начало 2 транзакции ********** ");
-    Mentor mentor1 = em.find(Mentor.class, 1L);
-    System.out.println("Имя ментора в базе:" + mentor1.getName());
+    CyclicBarrier barrier = new CyclicBarrier(2);
+    CountDownLatch cdl = new CountDownLatch(2);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    MyThread t1 = new MyThread.Builder()
+        .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
+        .name("1-Thread")
+        .methodName(MyThread.MethodName.CHANGE)
+        .time(0)
+        .build();
+    MyThread t2 = new MyThread.Builder()
+        .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
+        .name("2-Thread")
+        .methodName(MyThread.MethodName.CHANGE)
+        .time(1000)
+        .build();
+    System.out.println("Запуск потоков");
+    executor.execute(t1);
+    executor.execute(t2);
 
-    mentor1.setName("Ментор новый2");
-    em.merge(mentor1);
-    em.flush();
+    try {
+      cdl.await();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
 
-    assertEquals("Ментор новый2", mentor1.getName());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-
-    em.getTransaction().commit();
-    System.out.println("**********  Конец 2 транзакции ********** ");
+    executor.shutdown();
+    System.out.println("Завершение потоков");
     clearCache(true, true);
-    // 1 запрос.
   }
 
   /**
