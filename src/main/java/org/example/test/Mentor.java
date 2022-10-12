@@ -4,6 +4,7 @@ import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -19,13 +20,11 @@ import java.util.Set;
 * не могут быть кэшированы, если включена отложенная выборка на уровне атрибута.
 * READ_WRITE не обеспечивает уровень изоляции SERIALIZABLE
 * */
-//@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 @NamedQuery(name = "Mentor.getBySurname", query = "select e from mentors e where e.surname=:surname",
     hints = { @QueryHint(name = "org.hibernate.cacheable", value = "true") })
 public class Mentor {
-
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
   public Long id;
 
   public String name;
@@ -35,13 +34,9 @@ public class Mentor {
   public LocalDateTime birthday;
 
   /*   */
-  @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(
-          name = "student_mentor",
-          joinColumns = @JoinColumn(name = "mentor_id"),
-          inverseJoinColumns = @JoinColumn(name = "student_id"))
-  public Set<Student> students;
+  //@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
+  @OneToMany(fetch = FetchType.LAZY)
+  public List<Student> students;
 
   public Mentor() {
   }
@@ -52,7 +47,7 @@ public class Mentor {
     this.surname = surname;
   }
 
-  public Mentor(Long id, String name, String surname, LocalDateTime birthday, Set<Student> students) {
+  public Mentor(Long id, String name, String surname, LocalDateTime birthday, List<Student> students) {
     this.id = id;
     this.name = name;
     this.surname = surname;
@@ -92,11 +87,11 @@ public class Mentor {
     this.birthday = birthday;
   }
 
-  public Set<Student> getStudents() {
+  public List<Student> getStudents() {
     return students;
   }
 
-  public void setStudents(Set<Student> students) {
+  public void setStudents(List<Student> students) {
     this.students = students;
   }
 

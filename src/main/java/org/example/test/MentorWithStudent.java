@@ -4,6 +4,7 @@ import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -12,11 +13,10 @@ import java.util.Set;
 
 @Entity(name = "mentors_with_students")
 @Cacheable
-//@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 public class MentorWithStudent {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
   public Long id;
 
   public String name;
@@ -25,12 +25,8 @@ public class MentorWithStudent {
 
   public LocalDateTime birthday;
 
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(
-          name = "student_mentor_two",
-          joinColumns = @JoinColumn(name = "mentor_id"),
-          inverseJoinColumns = @JoinColumn(name = "student_id"))
-  public Set<Student> students;
+  @OneToMany(fetch = FetchType.LAZY)
+  public List<Student> students;
 
   public MentorWithStudent() {
   }
@@ -41,7 +37,7 @@ public class MentorWithStudent {
     this.surname = surname;
   }
 
-  public MentorWithStudent(Long id, String name, String surname, LocalDateTime birthday, Set<Student> students) {
+  public MentorWithStudent(Long id, String name, String surname, LocalDateTime birthday, List<Student> students) {
     this.id = id;
     this.name = name;
     this.surname = surname;
@@ -81,11 +77,11 @@ public class MentorWithStudent {
     this.birthday = birthday;
   }
 
-  public Set<Student> getStudents() {
+  public List<Student> getStudents() {
     return students;
   }
 
-  public void setStudents(Set<Student> students) {
+  public void setStudents(List<Student> students) {
     this.students = students;
   }
 

@@ -10,13 +10,12 @@ import java.util.Set;
  * @author Kuznetsovka created 14.07.2022
  */
 
-@Entity(name = "mentors_write_and_write")
+@Entity(name = "mentors_read_only")
 @Cacheable
-@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.TRANSACTIONAL)
+@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_ONLY)
 public class MentorReadOnly {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
   public Long id;
 
   public String name;

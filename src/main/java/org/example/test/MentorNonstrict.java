@@ -19,7 +19,6 @@ import java.util.Set;
 public class MentorNonstrict {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
   public Long id;
 
   public String name;

@@ -3,6 +3,7 @@ package org.example.test;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -12,7 +13,6 @@ import java.util.Set;
 @NamedQuery(name = "Student.getBySurname", query = "select e from students e where e.surname=:surname")
 public class Student {
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
   public Long id;
 
   public String name;
@@ -20,12 +20,8 @@ public class Student {
   public String surname;
 
   public LocalDateTime birthday;
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(
-          name = "course_student",
-          joinColumns = @JoinColumn(name = "student_id"),
-          inverseJoinColumns = @JoinColumn(name = "course_id"))
-  Set<Course> courses;
+  @OneToMany(fetch = FetchType.LAZY)
+  List<Course> courses;
 
   public Student(Long id, String name, String surname) {
     this.id = id;
@@ -33,10 +29,15 @@ public class Student {
     this.surname = surname;
   }
 
+  public Student(String name, String surname) {
+    this.name = name;
+    this.surname = surname;
+  }
+
   public Student() {
   }
 
-  public Student(Long id, String name, String surname, LocalDateTime birthday, Set<Course> courses) {
+  public Student(Long id, String name, String surname, LocalDateTime birthday, List<Course> courses) {
     this.id = id;
     this.name = name;
     this.surname = surname;
@@ -76,11 +77,11 @@ public class Student {
     this.birthday = birthday;
   }
 
-  public Set<Course> getCourses() {
+  public List<Course> getCourses() {
     return courses;
   }
 
-  public void setCourses(Set<Course> courses) {
+  public void setCourses(List<Course> courses) {
     this.courses = courses;
   }
 }
