@@ -8,6 +8,8 @@ import static org.example.test.Test2.*;
 
 class MyThread implements Runnable {
 
+
+
   enum MethodName {
     CHANGE,
     FIND,
@@ -16,6 +18,8 @@ class MyThread implements Runnable {
 
   enum TypeBarrier {
     EASY(0),
+    TIMEOUT_1(1),
+    TIMEOUT_3(3),
     TIMEOUT_5(5),
     TIMEOUT_10(10),
     TIMEOUT_20(20);
@@ -34,8 +38,9 @@ class MyThread implements Runnable {
   private CountDownLatch cdl;
   private String name;
   private MethodName methodName;
-  private int time;
-
+  private int timeBeforeStart;
+  private int timeBeforeCommit;
+  private int timeBeforeMethod;
   private TypeBarrier typeBarrier;
   private CyclicBarrier barrier;
   private Class<Mentor> mentor = null;
@@ -51,7 +56,9 @@ class MyThread implements Runnable {
     this.cdl = builder.cdl;
     this.name = builder.name;
     this.methodName = builder.methodName;
-    this.time = builder.time;
+    this.timeBeforeStart = builder.timeBeforeStart;
+    this.timeBeforeCommit = builder.timeBeforeCommit;
+    this.timeBeforeMethod = builder.timeBeforeMethod;
     this.barrier = builder.barrier;
     this.typeBarrier = builder.typeBarrier;
     this.mentor = builder.mentor;
@@ -67,7 +74,7 @@ class MyThread implements Runnable {
   }
 
   public void run() {
-    sleep(time);
+    sleep(timeBeforeStart);
     System.out.println(name + " ***** Начало транзакции *****");
     System.out.println(cache.toString());
     System.out.println(em.toString());
@@ -89,6 +96,7 @@ class MyThread implements Runnable {
     barrier(typeBarrier);
 
     try {
+      sleep(timeBeforeCommit);
       em.getTransaction().commit();
       System.out.println(name + " ***** Конец транзакции *****");
 
@@ -196,6 +204,7 @@ class MyThread implements Runnable {
   }
 
   private void method(MentorNameable mentor) throws OptimisticLockException, UnsupportedOperationException {
+    sleep(timeBeforeMethod);
     switch (methodName) {
       case CHANGE:
         mentor.setName("Ментор новый" + name);
@@ -225,7 +234,9 @@ class MyThread implements Runnable {
     protected CountDownLatch cdl;
     protected String name;
     protected MethodName methodName;
-    protected int time;
+    protected int timeBeforeStart;
+    protected int timeBeforeCommit;
+    protected int timeBeforeMethod;
     protected CyclicBarrier barrier;
     protected TypeBarrier typeBarrier = TypeBarrier.EASY;
     protected Class<Mentor> mentor = null;
@@ -252,8 +263,17 @@ class MyThread implements Runnable {
       return this;
     }
 
-    public Builder time(int time) {
-      this.time = time;
+    public Builder timeBeforeStart(int timeBeforeStart) {
+      this.timeBeforeStart = timeBeforeStart;
+      return this;
+    }
+
+    public Builder timeBeforeCommit(int timeBeforeCommit) {
+      this.timeBeforeCommit = timeBeforeCommit;
+      return this;
+    }
+    public Builder timeBeforeMethod(int timeBeforeMethod) {
+      this.timeBeforeMethod = timeBeforeMethod;
       return this;
     }
 

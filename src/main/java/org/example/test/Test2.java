@@ -277,7 +277,7 @@ public class Test2 {
    * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
-  public void READ_ONLY_TwoTransactional() {
+  public void READ_ONLY_TwoTransactions() {
     statictics.setStatisticsEnabled(true);
     CyclicBarrier barrier = new CyclicBarrier(2);
     CountDownLatch cdl = new CountDownLatch(2);
@@ -286,15 +286,14 @@ public class Test2 {
         .mentorReadOnly(MentorReadOnly.class).barrier(barrier).cdl(cdl)
         .name("1-Thread")
         .methodName(MyThread.MethodName.DELETE)
-        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_5)
-        .time(0)
+        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_3)
         .build();
     MyThread t2 = new MyThread.Builder()
         .mentorReadOnly(MentorReadOnly.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
         .methodName(MyThread.MethodName.DELETE)
-        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_10)
-        .time(1000)
+        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_1)
+        .timeBeforeStart(1000)
         .build();
     System.out.println("Запуск потоков");
     executor.execute(t1);
@@ -319,7 +318,7 @@ public class Test2 {
    * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
-  public void NONSTRICT_TwoTransactional() {
+  public void NONSTRICT_TwoTransactions() {
     statictics.setStatisticsEnabled(true);
     CyclicBarrier barrier = new CyclicBarrier(2);
     CountDownLatch cdl = new CountDownLatch(2);
@@ -327,14 +326,15 @@ public class Test2 {
     MyThread t1 = new MyThread.Builder()
         .mentorNonstrict(MentorNonstrict.class).barrier(barrier).cdl(cdl)
         .name("1-Thread")
-        .methodName(MyThread.MethodName.FIND)
-        .time(0)
+        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_3)
+        .methodName(MyThread.MethodName.DELETE)
         .build();
     MyThread t2 = new MyThread.Builder()
         .mentorNonstrict(MentorNonstrict.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
+        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_1)
         .methodName(MyThread.MethodName.FIND)
-        .time(1000)
+        .timeBeforeStart(1000)
         .build();
     System.out.println("Запуск потоков");
     executor.execute(t1);
@@ -359,7 +359,7 @@ public class Test2 {
    * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
-  public void WRITE_READ_TwoTransactional() {
+  public void WRITE_READ_TwoTransactions() {
     statictics.setStatisticsEnabled(true);
     CyclicBarrier barrier = new CyclicBarrier(2);
     CountDownLatch cdl = new CountDownLatch(2);
@@ -367,14 +367,13 @@ public class Test2 {
     MyThread t1 = new MyThread.Builder()
         .mentor(Mentor.class).barrier(barrier).cdl(cdl)
         .name("1-Thread")
-        .methodName(MyThread.MethodName.FIND)
-        .time(0)
+        .methodName(MyThread.MethodName.DELETE)
         .build();
     MyThread t2 = new MyThread.Builder()
         .mentor(Mentor.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
         .methodName(MyThread.MethodName.FIND)
-        .time(1000)
+        .timeBeforeStart(1000)
         .build();
     System.out.println("Запуск потоков");
     executor.execute(t1);
@@ -398,7 +397,7 @@ public class Test2 {
    * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
-  public void TRANSACTIONAL_TwoTransactional() {
+  public void TRANSACTIONAL_TwoTransactions() {
     statictics.setStatisticsEnabled(true);
     CyclicBarrier barrier = new CyclicBarrier(2);
     CountDownLatch cdl = new CountDownLatch(2);
@@ -406,14 +405,14 @@ public class Test2 {
     MyThread t1 = new MyThread.Builder()
         .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
         .name("1-Thread")
-        .methodName(MyThread.MethodName.CHANGE)
-        .time(0)
+        .methodName(MyThread.MethodName.DELETE)
+        .timeBeforeStart(0)
         .build();
     MyThread t2 = new MyThread.Builder()
         .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
-        .methodName(MyThread.MethodName.CHANGE)
-        .time(1000)
+        .methodName(MyThread.MethodName.FIND)
+        .timeBeforeStart(1000)
         .build();
     System.out.println("Запуск потоков");
     executor.execute(t1);
