@@ -236,12 +236,11 @@ public class Test2 {
 
   /**
    * Проверка кэша транзакционного изменения
-   * Начало
    * Стратегия: READ_ONLY
    * Вывод объект со стратегией ReadOnly не может быть изменен, но может быть удален
    */
   @Test
-  public void testCacheSecondTwoTransactional_start() {
+  public void testCacheSecond_CHANGE_READ_ONLY() {
     statictics.setStatisticsEnabled(true);
     try {
       em.getTransaction().begin();
@@ -278,7 +277,7 @@ public class Test2 {
    * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
-  public void testCacheSecondTwoTransactional_READ_ONLY() {
+  public void READ_ONLY_TwoTransactional() {
     statictics.setStatisticsEnabled(true);
     CyclicBarrier barrier = new CyclicBarrier(2);
     CountDownLatch cdl = new CountDownLatch(2);
@@ -286,13 +285,15 @@ public class Test2 {
     MyThread t1 = new MyThread.Builder()
         .mentorReadOnly(MentorReadOnly.class).barrier(barrier).cdl(cdl)
         .name("1-Thread")
-        .methodName(MyThread.MethodName.CHANGE)
+        .methodName(MyThread.MethodName.DELETE)
+        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_5)
         .time(0)
         .build();
     MyThread t2 = new MyThread.Builder()
         .mentorReadOnly(MentorReadOnly.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
-        .methodName(MyThread.MethodName.NONE)
+        .methodName(MyThread.MethodName.DELETE)
+        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_10)
         .time(1000)
         .build();
     System.out.println("Запуск потоков");
@@ -318,7 +319,7 @@ public class Test2 {
    * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
-  public void testCacheSecondTwoTransactional_NONSTRICT() {
+  public void NONSTRICT_TwoTransactional() {
     statictics.setStatisticsEnabled(true);
     CyclicBarrier barrier = new CyclicBarrier(2);
     CountDownLatch cdl = new CountDownLatch(2);
@@ -326,13 +327,13 @@ public class Test2 {
     MyThread t1 = new MyThread.Builder()
         .mentorNonstrict(MentorNonstrict.class).barrier(barrier).cdl(cdl)
         .name("1-Thread")
-        .methodName(MyThread.MethodName.CHANGE)
+        .methodName(MyThread.MethodName.FIND)
         .time(0)
         .build();
     MyThread t2 = new MyThread.Builder()
         .mentorNonstrict(MentorNonstrict.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
-        .methodName(MyThread.MethodName.NONE)
+        .methodName(MyThread.MethodName.FIND)
         .time(1000)
         .build();
     System.out.println("Запуск потоков");
@@ -358,7 +359,7 @@ public class Test2 {
    * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
-  public void testCacheSecondTwoTransactional_WRITE_READ() {
+  public void WRITE_READ_TwoTransactional() {
     statictics.setStatisticsEnabled(true);
     CyclicBarrier barrier = new CyclicBarrier(2);
     CountDownLatch cdl = new CountDownLatch(2);
@@ -366,13 +367,13 @@ public class Test2 {
     MyThread t1 = new MyThread.Builder()
         .mentor(Mentor.class).barrier(barrier).cdl(cdl)
         .name("1-Thread")
-        .methodName(MyThread.MethodName.CHANGE)
+        .methodName(MyThread.MethodName.FIND)
         .time(0)
         .build();
     MyThread t2 = new MyThread.Builder()
         .mentor(Mentor.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
-        .methodName(MyThread.MethodName.NONE)
+        .methodName(MyThread.MethodName.FIND)
         .time(1000)
         .build();
     System.out.println("Запуск потоков");
@@ -397,7 +398,7 @@ public class Test2 {
    * Вывод: Даже используя разные EM в транзакциях кэш 2-го уровня так-же работает
    */
   @Test
-  public void testCacheSecondTwoTransactional_TRANSACTIONAL() {
+  public void TRANSACTIONAL_TwoTransactional() {
     statictics.setStatisticsEnabled(true);
     CyclicBarrier barrier = new CyclicBarrier(2);
     CountDownLatch cdl = new CountDownLatch(2);
@@ -411,7 +412,7 @@ public class Test2 {
     MyThread t2 = new MyThread.Builder()
         .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
-        .methodName(MyThread.MethodName.NONE)
+        .methodName(MyThread.MethodName.CHANGE)
         .time(1000)
         .build();
     System.out.println("Запуск потоков");
@@ -439,7 +440,7 @@ public class Test2 {
   public void testCacheSecondLevelFindMethodQuery_Delete() {
     statictics.setStatisticsEnabled(true);
     em.getTransaction().begin();
-    Mentor mentor1 = em.find(Mentor.class, 1L);
+    MentorReadOnly mentor1 = em.find(MentorReadOnly.class, 1L);
     System.out.println(mentor1.getName());
     assertEquals(0, statictics.getUpdateTimestampsCachePutCount());
     assertEquals(0, statictics.getEntityDeleteCount());
@@ -447,7 +448,7 @@ public class Test2 {
     em.flush();
     assertEquals(2, statictics.getUpdateTimestampsCachePutCount());
     assertEquals(1, statictics.getEntityDeleteCount());
-    Mentor mentor2 = em.find(Mentor.class, 1L);
+    MentorReadOnly mentor2 = em.find(MentorReadOnly.class, 1L);
     System.out.println("Сущность = " + mentor2);
     assertNull(mentor2);
     assertEquals(4, statictics.getPrepareStatementCount());

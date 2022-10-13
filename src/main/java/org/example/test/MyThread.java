@@ -1,22 +1,42 @@
 package org.example.test;
 
 import javax.persistence.EntityManager;
-import java.util.concurrent.BrokenBarrierException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.CyclicBarrier;
+import javax.persistence.OptimisticLockException;
+import java.util.concurrent.*;
 
 import static org.example.test.Test2.*;
+
 class MyThread implements Runnable {
 
-  enum MethodName{
+  enum MethodName {
     CHANGE,
-    NONE,
+    FIND,
     DELETE
   }
+
+  enum TypeBarrier {
+    EASY(0),
+    TIMEOUT_5(5),
+    TIMEOUT_10(10),
+    TIMEOUT_20(20);
+
+    private volatile int time;
+
+    public int getTime() {
+      return time;
+    }
+
+    TypeBarrier(int time) {
+      this.time = time;
+    }
+  }
+
   private CountDownLatch cdl;
   private String name;
   private MethodName methodName;
   private int time;
+
+  private TypeBarrier typeBarrier;
   private CyclicBarrier barrier;
   private Class<Mentor> mentor = null;
   private Class<MentorReadOnly> mentorReadOnly = null;
@@ -33,6 +53,7 @@ class MyThread implements Runnable {
     this.methodName = builder.methodName;
     this.time = builder.time;
     this.barrier = builder.barrier;
+    this.typeBarrier = builder.typeBarrier;
     this.mentor = builder.mentor;
     this.mentorReadOnly = builder.mentorReadOnly;
     this.mentorTransactional = builder.mentorTransactional;
@@ -47,15 +68,15 @@ class MyThread implements Runnable {
 
   public void run() {
     sleep(time);
-    System.out.println(name + " Начало транзакции");
+    System.out.println(name + " ***** Начало транзакции *****");
     System.out.println(cache.toString());
     System.out.println(em.toString());
     em.getTransaction().begin();
 
     if (mentor != null)
-        mentor();
+      mentor();
     else if (mentorReadOnly != null)
-        mentorReadOnly();
+      mentorReadOnly();
     else if (mentorNonstrict != null)
       mentorNonstrict();
     else if (mentorTransactional != null)
@@ -64,22 +85,62 @@ class MyThread implements Runnable {
     System.out.println(name + " Количество запросов: " + statictics.getPrepareStatementCount());
     System.out.println(name + " Количество сущностей в кэше: " + statictics.getSecondLevelCachePutCount());
     System.out.println(name + " Количество сущностей взятых из кэша: " + statictics.getSecondLevelCacheHitCount());
+
+    barrier(typeBarrier);
+
     try {
-      barrier.await();
-    } catch (InterruptedException | BrokenBarrierException e) {
-      throw new RuntimeException(e);
-    }
-    em.getTransaction().commit();
-    System.out.println(name + " Количество запросов: " + statictics.getPrepareStatementCount());
-    System.out.println(name + " Количество сущностей в кэше: " + statictics.getSecondLevelCachePutCount());
-    System.out.println(name + " Количество сущностей взятых из кэша: " + statictics.getSecondLevelCacheHitCount());
-    System.out.println(name + " Конец транзакции");
-    try {
-      barrier.await();
-    } catch (InterruptedException | BrokenBarrierException e) {
-      throw new RuntimeException(e);
+      em.getTransaction().commit();
+      System.out.println(name + " ***** Конец транзакции *****");
+
+      barrier(typeBarrier);
+
+      printNameAfterTransaction();
+
+      System.out.println(name + " Количество запросов: " + statictics.getPrepareStatementCount());
+      System.out.println(name + " Количество сущностей в кэше: " + statictics.getSecondLevelCachePutCount());
+      System.out.println(name + " Количество сущностей взятых из кэша: " + statictics.getSecondLevelCacheHitCount());
+
+      barrier(typeBarrier);
+
+    } catch (OptimisticLockException e) {
+      e.printStackTrace();
     }
     cdl.countDown();
+  }
+
+  private void barrier(TypeBarrier typeBarrier) {
+    if(typeBarrier.equals(TypeBarrier.EASY)) {
+      try {
+        barrier.await();
+      } catch (InterruptedException | BrokenBarrierException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      try {
+        barrier.await(typeBarrier.getTime(), TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      } catch (TimeoutException e) {
+        System.out.println(name + " Конец таймаута");
+      } catch (BrokenBarrierException ignored) {
+      }
+    }
+  }
+
+  private void printNameAfterTransaction() {
+    if (mentor != null) {
+      Mentor mentor = em.find(Mentor.class, 1L);
+      System.out.println(name + " " + (mentor!= null ? mentor.getName() : "NULL"));
+    } else if (mentorReadOnly != null) {
+      MentorReadOnly mentor = em.find(MentorReadOnly.class, 1L);
+      System.out.println(name + " " + (mentor!= null ? mentor.getName() : "NULL"));
+    } else if (mentorNonstrict != null) {
+      MentorNonstrict mentor = em.find(MentorNonstrict.class, 1L);
+      System.out.println(name + " " + (mentor!= null ? mentor.getName() : "NULL"));
+    } else if (mentorTransactional != null) {
+      MentorTransactional mentor = em.find(MentorTransactional.class, 1L);
+      System.out.println(name + " " + (mentor!= null ? mentor.getName() : "NULL"));
+    }
   }
 
   private void mentorReadOnly() {
@@ -134,61 +195,30 @@ class MyThread implements Runnable {
     System.out.println(name + " Новое имя объекта: " + (mentor2 != null ? mentor2.getName() : "NULL"));
   }
 
-  private void method(MentorNameable mentor) {
-    switch (methodName){
+  private void method(MentorNameable mentor) throws OptimisticLockException, UnsupportedOperationException {
+    switch (methodName) {
       case CHANGE:
         mentor.setName("Ментор новый" + name);
         em.merge(mentor);
         try {
           em.flush();
-        } catch (UnsupportedOperationException e){
+          System.out.println(name + " CHANGE flush()");
+        } catch (UnsupportedOperationException | OptimisticLockException e) {
           e.printStackTrace();
         }
         break;
       case DELETE:
         em.remove(mentor);
-        em.flush();
+        try {
+          em.flush();
+        } catch (UnsupportedOperationException | OptimisticLockException e) {
+          e.printStackTrace();
+        }
+        System.out.println(name + " DELETE flush()");
         break;
-      case NONE:
+      case FIND:
         break;
     }
-  }
-
-
-  public CountDownLatch getCdl() {
-    return cdl;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public MethodName getMethodName() {
-    return methodName;
-  }
-
-  public int getTime() {
-    return time;
-  }
-
-  public CyclicBarrier getBarrier() {
-    return barrier;
-  }
-
-  public Class<Mentor> getMentor() {
-    return mentor;
-  }
-
-  public Class<MentorReadOnly> getMentorReadOnly() {
-    return mentorReadOnly;
-  }
-
-  public Class<MentorTransactional> getMentorTransactional() {
-    return mentorTransactional;
-  }
-
-  public Class<MentorNonstrict> getMentorNonstrict() {
-    return mentorNonstrict;
   }
 
   public static class Builder {
@@ -197,6 +227,7 @@ class MyThread implements Runnable {
     protected MethodName methodName;
     protected int time;
     protected CyclicBarrier barrier;
+    protected TypeBarrier typeBarrier = TypeBarrier.EASY;
     protected Class<Mentor> mentor = null;
     protected Class<MentorReadOnly> mentorReadOnly = null;
     protected Class<MentorTransactional> mentorTransactional = null;
@@ -230,6 +261,11 @@ class MyThread implements Runnable {
       this.barrier = barrier;
       return this;
     }
+    public Builder typeBarrier(TypeBarrier typeBarrier) {
+      this.typeBarrier = typeBarrier;
+      return this;
+    }
+
     public Builder mentor(Class<Mentor> mentor) {
       this.mentor = mentor;
       return this;
