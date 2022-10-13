@@ -1,6 +1,9 @@
 package org.example.test;
 
 import org.hibernate.annotations.CacheConcurrencyStrategy;
+import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.OptimisticLockType;
+import org.hibernate.annotations.OptimisticLocking;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -14,6 +17,8 @@ import java.util.Set;
 @Entity(name = "mentors_read_only")
 @Cacheable
 @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_ONLY)
+//@OptimisticLocking(type = OptimisticLockType.ALL)
+//@DynamicUpdate
 public class MentorReadOnly implements MentorNameable {
 
   @Id

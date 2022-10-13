@@ -27,7 +27,7 @@
 
             <property name="hibernate.transaction.jta.platform" value="org.hibernate.engine.transaction.jta.platform.internal.WeblogicJtaPlatform"/>
 <!--            <property name="hibernate.transaction.auto_close_session" value="true"/>-->
-<!--            <property name="javax.persistence.lock.timeout" value="10"/>-->
+            <property name="javax.persistence.lock.timeout" value="10"/>
 
             <property name="hibernate.cache.use_second_level_cache" value="true"/>
             <property name="hibernate.cache.region.factory_class" value="org.hibernate.cache.jcache.JCacheRegionFactory"/>
