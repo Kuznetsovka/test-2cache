@@ -24,17 +24,17 @@ import java.util.List;
 public class MentorTransactional implements MentorNameable {
 
   @Id
-  public Long id;
+  private Long id;
 
-  public String name;
+  private String name;
 
-  public String surname;
+  private String surname;
 
-  public LocalDateTime birthday;
+  private LocalDateTime birthday;
 
   @OneToMany(fetch = FetchType.LAZY)
   @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.TRANSACTIONAL)
-  public List<Student> students;
+  private List<Student> students;
 
   public MentorTransactional() {
   }

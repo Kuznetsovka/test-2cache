@@ -9,7 +9,7 @@ import javax.persistence.*;
 public class Estimation {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  public Long id;
+  private Long id;
 
   public Estimation() {
   }

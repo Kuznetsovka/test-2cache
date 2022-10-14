@@ -13,15 +13,15 @@ import java.util.Set;
 @NamedQuery(name = "Student.getBySurname", query = "select e from students e where e.surname=:surname")
 public class Student {
   @Id
-  public Long id;
+  private Long id;
 
-  public String name;
+  private String name;
 
-  public String surname;
+  private String surname;
 
-  public LocalDateTime birthday;
+  private LocalDateTime birthday;
   @OneToMany(fetch = FetchType.LAZY)
-  List<Course> courses;
+  private List<Course> courses;
 
   public Student(Long id, String name, String surname) {
     this.id = id;

@@ -17,16 +17,16 @@ import java.util.Set;
 public class MentorWithStudent implements MentorNameable {
 
   @Id
-  public Long id;
+  private Long id;
 
-  public String name;
+  private String name;
 
-  public String surname;
+  private String surname;
 
-  public LocalDateTime birthday;
+  private LocalDateTime birthday;
 
   @OneToMany(fetch = FetchType.LAZY)
-  public List<Student> students;
+  private List<Student> students;
 
   public MentorWithStudent() {
   }

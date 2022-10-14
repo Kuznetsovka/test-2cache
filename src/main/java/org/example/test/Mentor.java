@@ -26,22 +26,23 @@ import java.util.Set;
 @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 @NamedQuery(name = "Mentor.getBySurname", query = "select e from mentors e where e.surname=:surname",
     hints = { @QueryHint(name = "org.hibernate.cacheable", value = "true") })
-@OptimisticLocking(type = OptimisticLockType.ALL)
-@DynamicUpdate
 public class Mentor implements MentorNameable {
   @Id
-  public Long id;
+  private Long id;
 
-  public String name;
+  private String name;
 
-  public String surname;
+  @Version
+  private int version;
 
-  public LocalDateTime birthday;
+  private String surname;
+
+  private LocalDateTime birthday;
 
   /*   */
   @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
   @OneToMany(fetch = FetchType.LAZY)
-  public List<Student> students;
+  private List<Student> students;
 
   public Mentor() {
   }

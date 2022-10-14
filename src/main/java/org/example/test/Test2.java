@@ -74,7 +74,7 @@ public class Test2 {
     em.persist(mentor6);
     em.flush();
     em.getTransaction().commit();
-    clearCache(true, false);
+    clearCache(false);
   }
 
   /**
@@ -98,11 +98,11 @@ public class Test2 {
 
     System.out.println(student2.getName());
     assertTrue(em.contains(student1));
-    assertEquals(student1, student2);
+    assertEquals(student1, student2); // Данные взяты из кэша 1-го уровня
     assertEquals(2, statictics.getQueryExecutionCount());
     assertEquals(0, statictics.getSecondLevelCachePutCount());
 
-    clearCache(true, false);
+    clearCache(false);
 
     EntityManager em1 = emf.createEntityManager();
     EntityManager em2 = emf.createEntityManager();
@@ -127,7 +127,7 @@ public class Test2 {
     assertEquals(2, statictics.getQueryExecutionCount());
     assertEquals(0, statictics.getSecondLevelCachePutCount());
 
-    clearCache(true, true);
+    clearCache(true);
 
   }
 
@@ -158,7 +158,7 @@ public class Test2 {
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     assertEquals(0, statictics.getSecondLevelCacheHitCount());
 
-    clearCache(true, false);
+    clearCache(false);
 
     EntityManager em1 = emf.createEntityManager();
     EntityManager em2 = emf.createEntityManager();
@@ -185,7 +185,7 @@ public class Test2 {
     assertEquals(2, statictics.getQueryExecutionCount());
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     assertEquals(0, statictics.getSecondLevelCacheHitCount()); // Объекты взяты из базы, хоть и лежит в кэше 2-го уровня.
-    clearCache(true, true);
+    clearCache(true);
 
   }
 
@@ -215,7 +215,7 @@ public class Test2 {
 
     em1.clear();
     em2.clear();
-    clearCache(true, false);
+    clearCache(false);
 
     Mentor mentor3 = em1.createQuery("select e from mentors e where e.id=:id", Mentor.class)
         .setParameter("id", 1L)
@@ -231,7 +231,7 @@ public class Test2 {
     assertEquals(1, statictics.getSecondLevelCachePutCount());
     assertEquals(1, statictics.getSecondLevelCacheHitCount());
     System.out.println("Получение общего количество кэшируемых сущностей/коллекций, успешно извлеченных из кэша: " + statictics.getSecondLevelCacheHitCount());
-    clearCache(true, true);
+    clearCache(true);
   }
 
   /**
@@ -266,7 +266,7 @@ public class Test2 {
     em.remove(mentor1);
     em.flush();
     em.getTransaction().commit();
-    clearCache(true, true);
+    clearCache(true);
   }
 
 
@@ -285,14 +285,14 @@ public class Test2 {
     MyThread t1 = new MyThread.Builder()
         .mentorReadOnly(MentorReadOnly.class).barrier(barrier).cdl(cdl)
         .name("1-Thread")
-        .methodName(MyThread.MethodName.DELETE)
-        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_3)
+        .methodName(MyThread.MethodName.CHANGE)
+        .typeBarrier(MyThread.TypeBarrier.TIMEOUT_1)
         .build();
     MyThread t2 = new MyThread.Builder()
         .mentorReadOnly(MentorReadOnly.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
-        .methodName(MyThread.MethodName.DELETE)
-        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_1)
+        .methodName(MyThread.MethodName.CHANGE)
+        .typeBarrier(MyThread.TypeBarrier.TIMEOUT_3)
         .timeBeforeStart(1000)
         .build();
     System.out.println("Запуск потоков");
@@ -307,7 +307,7 @@ public class Test2 {
 
     executor.shutdown();
     System.out.println("Завершение потоков");
-    clearCache(true, true);
+    clearCache(true);
   }
 
   /**
@@ -326,20 +326,25 @@ public class Test2 {
     MyThread t1 = new MyThread.Builder()
         .mentorNonstrict(MentorNonstrict.class).barrier(barrier).cdl(cdl)
         .name("1-Thread")
-        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_3)
-        .methodName(MyThread.MethodName.DELETE)
+        .typeBarrier(MyThread.TypeBarrier.TIMEOUT_1)
+        .methodName(MyThread.MethodName.CHANGE)
         .build();
     MyThread t2 = new MyThread.Builder()
         .mentorNonstrict(MentorNonstrict.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
-        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_1)
-        .methodName(MyThread.MethodName.FIND)
+        .typeBarrier(MyThread.TypeBarrier.TIMEOUT_3)
+        .methodName(MyThread.MethodName.CHANGE)
         .timeBeforeStart(1000)
         .build();
+//    MyThread t3 = new MyThread.Builder()
+//        .mentorNonstrict(MentorNonstrict.class).barrier(barrier).cdl(cdl)
+//        .name("3-Thread")
+//        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_3)
+//        .methodName(MyThread.MethodName.FIND)
+//        .build();
     System.out.println("Запуск потоков");
     executor.execute(t1);
     executor.execute(t2);
-
     try {
       cdl.await();
     } catch (InterruptedException e) {
@@ -348,7 +353,7 @@ public class Test2 {
 
     executor.shutdown();
     System.out.println("Завершение потоков");
-    clearCache(true, true);
+    //clearCache(true);
   }
 
   /**
@@ -367,12 +372,14 @@ public class Test2 {
     MyThread t1 = new MyThread.Builder()
         .mentor(Mentor.class).barrier(barrier).cdl(cdl)
         .name("1-Thread")
-        .methodName(MyThread.MethodName.DELETE)
+        .typeBarrier(MyThread.TypeBarrier.TIMEOUT_1)
+        .methodName(MyThread.MethodName.CHANGE)
         .build();
     MyThread t2 = new MyThread.Builder()
         .mentor(Mentor.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
-        .methodName(MyThread.MethodName.FIND)
+        .typeBarrier(MyThread.TypeBarrier.TIMEOUT_3)
+        .methodName(MyThread.MethodName.CHANGE)
         .timeBeforeStart(1000)
         .build();
     System.out.println("Запуск потоков");
@@ -387,7 +394,7 @@ public class Test2 {
 
     executor.shutdown();
     System.out.println("Завершение потоков");
-    clearCache(true, true);
+    clearCache(true);
   }
 
   /**
@@ -405,13 +412,15 @@ public class Test2 {
     MyThread t1 = new MyThread.Builder()
         .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
         .name("1-Thread")
-        .methodName(MyThread.MethodName.DELETE)
+        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_1)
+        .methodName(MyThread.MethodName.CHANGE)
         .timeBeforeStart(0)
         .build();
     MyThread t2 = new MyThread.Builder()
         .mentorTransactional(MentorTransactional.class).barrier(barrier).cdl(cdl)
         .name("2-Thread")
-        .methodName(MyThread.MethodName.FIND)
+        //.typeBarrier(MyThread.TypeBarrier.TIMEOUT_3)
+        .methodName(MyThread.MethodName.CHANGE)
         .timeBeforeStart(1000)
         .build();
     System.out.println("Запуск потоков");
@@ -426,34 +435,7 @@ public class Test2 {
 
     executor.shutdown();
     System.out.println("Завершение потоков");
-    clearCache(true, true);
-  }
-
-  /**
-   * Проверка кэша 2-го уровня в транзакции при удалении записи
-   * Стратегия: WRITE_READ
-   * Результат: 2 запроса. До окончания транзакции сущность уже меняет состояние на null.
-   * Вывод: Имеем 2 запроса, но данные возвращаются из cache? т.к. в момент запроса в базе объект еще не удален.
-   */
-  @Test
-  public void testCacheSecondLevelFindMethodQuery_Delete() {
-    statictics.setStatisticsEnabled(true);
-    em.getTransaction().begin();
-    MentorReadOnly mentor1 = em.find(MentorReadOnly.class, 1L);
-    System.out.println(mentor1.getName());
-    assertEquals(0, statictics.getUpdateTimestampsCachePutCount());
-    assertEquals(0, statictics.getEntityDeleteCount());
-    em.remove(mentor1);
-    em.flush();
-    assertEquals(2, statictics.getUpdateTimestampsCachePutCount());
-    assertEquals(1, statictics.getEntityDeleteCount());
-    MentorReadOnly mentor2 = em.find(MentorReadOnly.class, 1L);
-    System.out.println("Сущность = " + mentor2);
-    assertNull(mentor2);
-    assertEquals(4, statictics.getPrepareStatementCount());
-    assertEquals(1, statictics.getSecondLevelCachePutCount());
-    em.getTransaction().commit();
-    clearCache(true, true);
+    clearCache(true);
   }
 
   /**
@@ -475,7 +457,7 @@ public class Test2 {
     assertEquals(2, statictics.getSecondLevelCachePutCount());
     assertEquals(2, statictics.getPrepareStatementCount());
 
-    clearCache(true, false);
+    clearCache(false);
 
     MentorWithStudent mentor2 = em.find(MentorWithStudent.class, 1L);
     Integer count2 = mentor2.getStudents().size(); // первое обращение к коллекции студентов
@@ -485,7 +467,7 @@ public class Test2 {
     }
     //assertEquals(1, statictics.getSecondLevelCachePutCount());
 
-    clearCache(true, true);
+    clearCache(true);
   }
 
   public static void sleep(int milliseconds) {
@@ -497,15 +479,14 @@ public class Test2 {
     }
   }
 
-  private static void clearCache(boolean isClearStatistic, boolean isCloseSession) {
+  private static void clearCache(boolean isCloseSession) {
     if (cache != null) {
       session.clear();
       emf.getCache().evictAll();
       cache.evictAll();
       sf.getCache().evictQueryRegions();
     }
-    if (isClearStatistic)
-      statictics.clear();
+    statictics.clear();
     if (isCloseSession) {
       session.close();
     }

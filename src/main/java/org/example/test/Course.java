@@ -10,7 +10,7 @@ package org.example.test;
 public class Course {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  public Long id;
+  private Long id;
 
   public Course() {
   }

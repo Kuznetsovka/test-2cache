@@ -25,17 +25,20 @@ import java.util.Set;
 public class MentorNonstrict implements MentorNameable {
 
   @Id
-  public Long id;
+  private Long id;
 
-  public String name;
+  private String name;
 
-  public String surname;
+  @Version
+  private int version;
 
-  public LocalDateTime birthday;
+  private String surname;
+
+  private LocalDateTime birthday;
 
   @OneToMany(fetch = FetchType.LAZY)
   @org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
-  public List<Student> students;
+  private List<Student> students;
 
   public MentorNonstrict() {
   }
@@ -77,6 +80,14 @@ public class MentorNonstrict implements MentorNameable {
 
   public void setSurname(String surname) {
     this.surname = surname;
+  }
+
+  public int getVersion() {
+    return version;
+  }
+
+  public void setVersion(int version) {
+    this.version = version;
   }
 
   public LocalDateTime getBirthday() {
